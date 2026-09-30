@@ -1,0 +1,17 @@
+{
+  "name": "CropShield Kisan — Crop Disease Surveillance",
+  "short_name": "CropShield",
+  "description": "Autonomous Crop Disease Surveillance, AI Pathogen Diagnostics & Outbreak Early Warning",
+  "start_url": "/farmer/home",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#15803d",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
