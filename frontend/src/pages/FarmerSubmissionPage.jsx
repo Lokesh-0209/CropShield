@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,10 +30,14 @@ import { saveOfflineReport } from '../services/offlineQueue';
 import { getTreatmentAdvice } from '../services/diseaseTreatments';
 
 import ImageInput from '../components/farmer/ImageInput';
-import LocationPicker from '../components/farmer/LocationPicker';
 import VoiceInputButton from '../components/farmer/VoiceInputButton';
 import RiskBadge from '../components/RiskBadge';
 import { Card, CardBody } from '../components/common/Card';
+import { Skeleton } from '../components/common/Skeleton';
+import useDocumentMetadata from '../hooks/useDocumentMetadata';
+import { useToast } from '../context/ToastContext';
+
+const LocationPicker = lazy(() => import('../components/farmer/LocationPicker'));
 
 const DRAFT_STORAGE_KEY = 'cropshield_farmer_report_draft_v2';
 
@@ -142,6 +146,12 @@ const reportFormSchema = z.object({
 
 export default function FarmerSubmissionPage({ onCaseCreated }) {
   const { t } = useTranslation();
+  const { success, info } = useToast();
+
+  useDocumentMetadata({
+    title: 'Report Crop Disease — CropShield Kisan',
+    description: 'Capture foliar crop disease symptoms, pin field geolocation, and receive instant AI pathogen diagnosis.',
+  });
 
   const [currentStep, setCurrentStep] = useState(1);
   const [submittingStep, setSubmittingStep] = useState('idle'); // 'idle' | 'submitting' | 'done' | 'offline_saved'
@@ -338,6 +348,7 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
         setAnalyzedResult(offlineCase);
         setSubmittingStep('offline_saved');
         localStorage.removeItem(DRAFT_STORAGE_KEY);
+        info(t('reports.offlineSavedToast', 'Report saved locally on your device. Will automatically sync when online.'));
         if (onCaseCreated) onCaseCreated(offlineCase);
       } catch (err) {
         setSubmissionError(formatErrorMessage(err));
@@ -352,6 +363,7 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
       setAnalyzedResult(result);
       setSubmittingStep('done');
       localStorage.removeItem(DRAFT_STORAGE_KEY);
+      success(t('reports.submittedToast', 'Report submitted successfully! AI analysis ready.'));
 
       if (onCaseCreated) onCaseCreated(result);
     } catch (err) {
@@ -360,6 +372,7 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
         setAnalyzedResult(offlineCase);
         setSubmittingStep('offline_saved');
         localStorage.removeItem(DRAFT_STORAGE_KEY);
+        info(t('reports.offlineSavedToast', 'Report saved locally on your device. Will automatically sync when online.'));
       } else {
         setSubmittingStep('idle');
         setSubmissionError(formatErrorMessage(err));
@@ -629,7 +642,14 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
                     <div className="review-row-left">
                       <div className="review-row-thumb">
                         {formData.image_url ? (
-                          <img src={formData.image_url} alt="Crop" />
+                          <img
+                            src={formData.image_url}
+                            alt="Crop specimen preview"
+                            width="48"
+                            height="48"
+                            loading="lazy"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
                         ) : (
                           <Camera size={20} className="text-muted" />
                         )}
@@ -899,17 +919,19 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
                         </p>
                       </div>
 
-                      <LocationPicker
-                        latitude={formData.latitude}
-                        longitude={formData.longitude}
-                        locationName={formData.location_name}
-                        onChange={({ latitude, longitude, locationName }) => {
-                          setValue('latitude', latitude, { shouldValidate: true });
-                          setValue('longitude', longitude, { shouldValidate: true });
-                          if (locationName) setValue('location_name', locationName, { shouldValidate: true });
-                        }}
-                        error={errors.location_name?.message || errors.latitude?.message}
-                      />
+                      <Suspense fallback={<Skeleton height="260px" width="100%" />}>
+                        <LocationPicker
+                          latitude={formData.latitude}
+                          longitude={formData.longitude}
+                          locationName={formData.location_name}
+                          onChange={({ latitude, longitude, locationName }) => {
+                            setValue('latitude', latitude, { shouldValidate: true });
+                            setValue('longitude', longitude, { shouldValidate: true });
+                            if (locationName) setValue('location_name', locationName, { shouldValidate: true });
+                          }}
+                          error={errors.location_name?.message || errors.latitude?.message}
+                        />
+                      </Suspense>
                     </div>
                   )}
 
@@ -928,7 +950,14 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
                           <div className="review-row-left">
                             <div className="review-row-thumb">
                               {formData.image_url ? (
-                                <img src={formData.image_url} alt="Crop" />
+                                <img
+                                  src={formData.image_url}
+                                  alt="Crop specimen preview"
+                                  width="48"
+                                  height="48"
+                                  loading="lazy"
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
                               ) : (
                                 <Camera size={20} className="text-muted" />
                               )}
@@ -1095,7 +1124,14 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
 
                 <div className="side-panel-photo mb-3">
                   {formData.image_url ? (
-                    <img src={formData.image_url} alt="Attached crop" />
+                    <img
+                      src={formData.image_url}
+                      alt="Attached crop specimen"
+                      width="260"
+                      height="160"
+                      loading="lazy"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
                   ) : (
                     <div className="side-panel-placeholder">
                       <Camera size={28} className="text-muted mb-1" />

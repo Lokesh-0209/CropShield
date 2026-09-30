@@ -1,10 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   RefreshCw,
-  Calendar,
   Layers,
-  ArrowRight,
   ShieldCheck,
   Flame,
   AlertTriangle,
@@ -23,6 +21,7 @@ import { Toast } from '../components/common/Toast';
 import { ErrorState } from '../components/common/ErrorState';
 import { EmptyState } from '../components/common/EmptyState';
 import { Skeleton } from '../components/common/Skeleton';
+import useDocumentMetadata from '../hooks/useDocumentMetadata';
 
 // Curated officer advisories for Karnataka agricultural zones
 const CURATED_ADVISORIES = {
@@ -64,8 +63,11 @@ const CURATED_ADVISORIES = {
   },
 };
 
-export default function AlertsPage({ onNavigateToOutbreaks }) {
-  const navigate = useNavigate();
+export default function AlertsPage() {
+  useDocumentMetadata({
+    title: 'Alerts Center — Officer Portal',
+    description: 'Real-time epidemic alerts, quarantine advisories, and containment broadcasts.',
+  });
 
   const [severityFilter, setSeverityFilter] = useState('ALL');
   const [districtFilter, setDistrictFilter] = useState('ALL');

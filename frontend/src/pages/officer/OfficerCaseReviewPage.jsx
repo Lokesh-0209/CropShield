@@ -2,8 +2,6 @@ import { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  MapPin,
-  Calendar,
   CheckCircle2,
   XCircle,
   HelpCircle,
@@ -16,7 +14,6 @@ import {
   User,
   Cpu,
   AlertTriangle,
-  Info,
   Layers,
 } from 'lucide-react';
 import { useCase, useVerifyCase } from '../../services/queries';
@@ -29,8 +26,9 @@ import StatusBadge from '../../components/StatusBadge';
 import RiskBadge from '../../components/RiskBadge';
 import { Skeleton } from '../../components/common/Skeleton';
 import { ErrorState } from '../../components/common/ErrorState';
-import { CaseStatus, VerificationStatus, formatErrorMessage } from '../../services/api';
+import { VerificationStatus, formatErrorMessage } from '../../services/api';
 import ZoomableImage from '../../components/officer/ZoomableImage';
+import useDocumentMetadata from '../../hooks/useDocumentMetadata';
 
 // Known diseases for Karnataka Solanaceous and Cereal crops
 const COMMON_DISEASES = [
@@ -56,6 +54,11 @@ export default function OfficerCaseReviewPage() {
 
   const { data: caseItem, isLoading, isError, error, refetch, isFetching } = useCase(id);
   const verifyMutation = useVerifyCase();
+
+  useDocumentMetadata({
+    title: caseItem?.crop ? `Case #${id} (${caseItem.crop}) — Officer Review` : `Case #${id} — Officer Review`,
+    description: 'Field specimen verification, high-resolution foliar zoom analysis, and official diagnosis reclassification.',
+  });
 
   // Active Action Modal state: null | 'CONFIRM' | 'CORRECT' | 'REJECT' | 'MORE_INFO'
   const [activeActionModal, setActiveActionModal] = useState(null);

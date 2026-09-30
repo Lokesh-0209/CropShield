@@ -17,6 +17,8 @@
   user-select: none;
   text-decoration: none;
   line-height: 1.25;
+  min-height: 44px;
+  min-width: 44px;
 }
 
 .cs-btn:focus-visible {
@@ -33,24 +35,28 @@
 /* Sizes */
 .cs-btn-xs {
   font-size: var(--font-xs);
-  padding: 4px 8px;
+  padding: 6px 12px;
   border-radius: var(--radius-sm);
+  min-height: 44px;
 }
 
 .cs-btn-sm {
   font-size: var(--font-sm);
-  padding: 6px 12px;
+  padding: 8px 14px;
+  min-height: 44px;
 }
 
 .cs-btn-md {
   font-size: var(--font-sm);
-  padding: 9px 16px;
+  padding: 11px 18px;
+  min-height: 48px;
 }
 
 .cs-btn-lg {
   font-size: var(--font-base);
-  padding: 12px 22px;
+  padding: 14px 24px;
   font-weight: 700;
+  min-height: 48px;
 }
 
 .cs-btn-block {
@@ -529,6 +535,7 @@
   width: 100%;
   max-width: 540px;
   max-height: 90vh;
+  max-height: 90dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -565,7 +572,9 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 6px;
+  padding: 8px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -622,6 +631,7 @@
    ========================================================================== */
 .farmer-layout {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background-color: #fbfdfc;
@@ -760,6 +770,7 @@
    ========================================================================== */
 .officer-layout {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-app);
@@ -846,6 +857,7 @@
    ========================================================================== */
 .login-page-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: center;

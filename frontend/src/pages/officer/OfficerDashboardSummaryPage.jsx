@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ClipboardList,
@@ -8,22 +8,27 @@ import {
   ArrowRight,
   Compass,
   Sparkles,
-  MapPin,
-  ExternalLink,
 } from 'lucide-react';
-import { useCases, useOutbreaks, useAlerts, useSurveillanceQueue } from '../../services/queries';
+import { useCases, useOutbreaks, useSurveillanceQueue } from '../../services/queries';
 import { PageHeader } from '../../components/common/PageHeader';
 import { StatCard } from '../../components/common/StatCard';
 import { Card, CardBody } from '../../components/common/Card';
+import { Skeleton } from '../../components/common/Skeleton';
 import RiskBadge from '../../components/RiskBadge';
 import { CaseStatus } from '../../services/api';
-import CaseTrendChart from '../../components/officer/CaseTrendChart';
+import useDocumentMetadata from '../../hooks/useDocumentMetadata';
+
+const CaseTrendChart = lazy(() => import('../../components/officer/CaseTrendChart'));
 
 export default function OfficerDashboardSummaryPage() {
+  useDocumentMetadata({
+    title: 'Surveillance Overview — Officer Portal',
+    description: 'Active pathogen surveillance telemetry, triage queue, and outbreak indicators.',
+  });
+
   const { data: casesData, isLoading: casesLoading, isError: casesError } = useCases({ limit: 100 });
   const { data: outbreakData, isLoading: outbreaksLoading, isError: outbreaksError } = useOutbreaks();
-  const { data: alertsData, isLoading: alertsLoading, isError: alertsError } = useAlerts();
-  const { data: survData, isLoading: survLoading, isError: survError } = useSurveillanceQueue();
+  const { data: survData } = useSurveillanceQueue();
 
   const cases = useMemo(() => {
     return casesData?.items || (Array.isArray(casesData) ? casesData : []);
@@ -144,7 +149,7 @@ export default function OfficerDashboardSummaryPage() {
           title="Verified Outbreaks"
           value={stats.verified}
           loading={casesLoading || outbreaksLoading}
-          error={casesError && outbreaksError}
+          error={casesError || outbreaksError}
           icon={ShieldCheck}
           variant="low"
           subtext="Confirmed pathogen focal points"
@@ -160,9 +165,11 @@ export default function OfficerDashboardSummaryPage() {
         />
       </div>
 
-      {/* Trend Chart: Cases Over the Last 30 Days */}
+      {/* Trend Chart: Cases Over the Last 30 Days (Lazy-Loaded) */}
       <div className="mb-6">
-        <CaseTrendChart cases={cases} isLoading={casesLoading} />
+        <Suspense fallback={<Skeleton height="320px" width="100%" />}>
+          <CaseTrendChart cases={cases} isLoading={casesLoading} />
+        </Suspense>
       </div>
 
       {/* Two Column Grid: Pending Verification Triage & Quick Surveillance Access */}
@@ -211,7 +218,10 @@ export default function OfficerDashboardSummaryPage() {
                         {c.image_url ? (
                           <img
                             src={c.image_url}
-                            alt={c.crop}
+                            alt={`Photo of ${c.crop}`}
+                            width="42"
+                            height="42"
+                            loading="lazy"
                             style={{
                               width: '42px',
                               height: '42px',

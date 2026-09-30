@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import {
   X,
   MapPin,
@@ -10,11 +11,43 @@ import StatusBadge from './StatusBadge';
 import RiskBadge from './RiskBadge';
 
 export default function CaseDetailModal({ caseItem, onClose, onVerifyClick }) {
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    if (!caseItem) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose?.();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    // Focus close button initially
+    const closeBtn = dialogRef.current?.querySelector('.modal-close');
+    closeBtn?.focus();
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [caseItem, onClose]);
+
   if (!caseItem) return null;
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="case-modal-title">
-      <div className="modal-dialog modal-dialog-lg">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="case-modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+    >
+      <div ref={dialogRef} className="modal-dialog modal-dialog-lg">
         <div className="modal-header">
           <div>
             <h2 id="case-modal-title" className="modal-title">
@@ -40,7 +73,10 @@ export default function CaseDetailModal({ caseItem, onClose, onVerifyClick }) {
                 <div className="detail-photo-frame">
                   <img
                     src={caseItem.image_url}
-                    alt={`Affected ${caseItem.crop}`}
+                    alt={`Affected specimen of ${caseItem.crop}`}
+                    width="280"
+                    height="200"
+                    loading="lazy"
                     className="detail-photo-img"
                     onError={(e) => {
                       e.target.style.display = 'none';

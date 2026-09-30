@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Layers, MapPin, Navigation, Flame, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Navigation } from 'lucide-react';
 import { RiskLevel } from '../../types/enums';
 
 // Helper for severity styling and icons

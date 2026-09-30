@@ -35,7 +35,7 @@ export default function AssignInspectionModal({ field, onClose, onAssigned }) {
     <Modal
       isOpen={Boolean(field)}
       onClose={onClose}
-      title={`Assign Sentinel Inspection &bull; #${field?.rank} ${field?.name}`}
+      title={`Assign Sentinel Inspection • #${field?.rank} ${field?.name}`}
     >
       <form onSubmit={handleSubmit}>
         <div className="mb-3" style={{ padding: '10px 14px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)' }}>

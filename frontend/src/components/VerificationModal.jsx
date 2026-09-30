@@ -1,13 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, XCircle, HelpCircle, X, AlertCircle } from 'lucide-react';
 import { VerificationStatus, verifyCase, formatErrorMessage } from '../services/api';
 import RiskBadge from './RiskBadge';
 
 export default function VerificationModal({ caseItem, onClose, onVerified }) {
+  const dialogRef = useRef(null);
   const [selectedStatus, setSelectedStatus] = useState(VerificationStatus.VERIFIED);
   const [officerNote, setOfficerNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+
+  useEffect(() => {
+    if (!caseItem) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose?.();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    // Focus close button initially
+    const closeBtn = dialogRef.current?.querySelector('.modal-close');
+    closeBtn?.focus();
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [caseItem, onClose]);
 
   if (!caseItem) return null;
 
@@ -38,8 +61,16 @@ export default function VerificationModal({ caseItem, onClose, onVerified }) {
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div className="modal-dialog">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+    >
+      <div ref={dialogRef} className="modal-dialog">
         <div className="modal-header">
           <div>
             <h2 id="modal-title" className="modal-title">Verify Case</h2>

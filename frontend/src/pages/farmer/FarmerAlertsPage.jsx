@@ -18,9 +18,15 @@ import { Skeleton } from '../../components/common/Skeleton';
 import { EmptyState } from '../../components/common/EmptyState';
 import { ErrorState } from '../../components/common/ErrorState';
 import { formatErrorMessage } from '../../services/api';
+import useDocumentMetadata from '../../hooks/useDocumentMetadata';
 
 export default function FarmerAlertsPage() {
   const { t } = useTranslation();
+  useDocumentMetadata({
+    title: 'Outbreak Alerts — CropShield Kisan',
+    description: 'Early warning disease advisories and spatial pathogen transmission alerts.',
+  });
+
   const { user } = useAuth();
   const userDistrict = user?.district || 'Kolar';
 

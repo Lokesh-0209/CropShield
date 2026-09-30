@@ -138,8 +138,11 @@ export default function FarmerLayout() {
       </header>
 
       {/* Main Content Pane */}
-      <main style={{ flex: 1, padding: '16px 12px 24px' }}>
+      <main style={{ flex: 1, padding: '16px 12px 16px' }}>
         <Outlet />
+        <footer style={{ textAlign: 'center', padding: '28px 8px 16px', fontSize: '11.5px', color: 'var(--text-muted)' }}>
+          CropShield: Agricultural Disease Surveillance &amp; Outbreak Intelligence
+        </footer>
       </main>
 
       {/* Fixed Bottom Tab Bar - strictly >= 48px touch targets */}

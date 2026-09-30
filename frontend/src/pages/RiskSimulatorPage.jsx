@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Sliders,
   Thermometer,
@@ -7,10 +7,6 @@ import {
   Users,
   Play,
   RotateCcw,
-  Sparkles,
-  Layers,
-  Sprout,
-  HelpCircle,
 } from 'lucide-react';
 import { useRiskSimulation } from '../services/queries';
 import { formatErrorMessage } from '../services/api';
@@ -18,6 +14,7 @@ import { PageHeader } from '../components/common/PageHeader';
 import { Button } from '../components/common/Button';
 import { ErrorState } from '../components/common/ErrorState';
 import RiskGauge from '../components/officer/RiskGauge';
+import useDocumentMetadata from '../hooks/useDocumentMetadata';
 
 const CROPS = ['Tomato', 'Potato', 'Corn', 'Chili', 'Capsicum'];
 const GROWTH_STAGES = [
@@ -30,6 +27,11 @@ const GROWTH_STAGES = [
 ];
 
 export default function RiskSimulatorPage() {
+  useDocumentMetadata({
+    title: 'Risk Simulator — Officer Portal',
+    description: 'Simulate micro-climatic pathogen spread scenarios, environmental risk scoring, and crop vulnerability factors.',
+  });
+
   const [params, setParams] = useState({
     crop: 'Tomato',
     growth_stage: 'Flowering',

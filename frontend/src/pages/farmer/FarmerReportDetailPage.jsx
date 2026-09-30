@@ -20,6 +20,7 @@ import { Card, CardBody } from '../../components/common/Card';
 import { Skeleton } from '../../components/common/Skeleton';
 import { ErrorState } from '../../components/common/ErrorState';
 import { formatErrorMessage } from '../../services/api';
+import useDocumentMetadata from '../../hooks/useDocumentMetadata';
 
 /**
  * Visual status timeline for Report Detail
@@ -88,6 +89,13 @@ export default function FarmerReportDetailPage() {
     isOfflineId ? null : id
   );
 
+  const caseItem = isOfflineId ? offlineItem : serverCase;
+
+  useDocumentMetadata({
+    title: caseItem?.crop ? `Report #${id} (${caseItem.crop}) — CropShield Kisan` : `Report #${id} — CropShield Kisan`,
+    description: 'Farmer surveillance diagnosis, officer notes, and agrochemical treatment guidance.',
+  });
+
   useEffect(() => {
     if (isOfflineId) {
       setOfflineLoading(true);
@@ -98,8 +106,6 @@ export default function FarmerReportDetailPage() {
       });
     }
   }, [id, isOfflineId]);
-
-  const caseItem = isOfflineId ? offlineItem : serverCase;
 
   if (isError && !caseItem) {
     return (
@@ -243,7 +249,10 @@ export default function FarmerReportDetailPage() {
             >
               <img
                 src={caseItem.image_url}
-                alt={caseItem.crop}
+                alt={`Photo of affected ${caseItem.crop}`}
+                width="600"
+                height="280"
+                loading="lazy"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </div>

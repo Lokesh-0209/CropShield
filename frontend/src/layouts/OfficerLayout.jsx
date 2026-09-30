@@ -53,7 +53,6 @@ export default function OfficerLayout() {
     (a) => !readAlertIds.includes(a.warning_id || String(a.cluster_id))
   );
   const unreadCount = unreadAlerts.length;
-  const alertsCount = allAlerts.length;
 
   const pendingCasesCount = (casesData?.items || []).filter(
     (c) => c.status === CaseStatus.NEEDS_VERIFICATION || c.status === CaseStatus.ANALYZED
@@ -245,19 +244,14 @@ export default function OfficerLayout() {
         <Outlet />
       </main>
 
-      {/* Officer Footer (Dev metadata only) */}
-      {import.meta.env.DEV && (
-        <footer className="app-footer">
-          <div className="footer-container">
-            <div className="footer-brand">
-              <strong>CropShield HQ</strong> &mdash; Outbreak Intelligence Portal
-            </div>
-            <div className="footer-meta">
-              <span>Jurisdiction: <strong>{user?.jurisdiction || 'Kolar & Chikkaballapur'}</strong></span>
-            </div>
+      {/* Officer Footer: Simple product line only */}
+      <footer className="app-footer">
+        <div className="footer-container" style={{ justifyContent: 'center', textAlign: 'center' }}>
+          <div className="footer-brand" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            CropShield: Agricultural Disease Surveillance &amp; Outbreak Intelligence
           </div>
-        </footer>
-      )}
+        </div>
+      </footer>
     </div>
   );
 }

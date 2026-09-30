@@ -13,7 +13,7 @@ import { TrendingUp, Calendar } from 'lucide-react';
 /**
  * Custom Recharts Tooltip for 30-Day Surveillance Trend
  */
-function CustomTrendTooltip({ active, payload, label }) {
+function CustomTrendTooltip({ active, payload }) {
   if (!active || !payload || !payload.length) return null;
 
   const data = payload[0]?.payload;

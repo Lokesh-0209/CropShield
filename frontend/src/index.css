@@ -149,6 +149,7 @@ textarea {
 html,
 body {
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--bg-app);
   color: var(--text-body);
   font-family: var(--font-sans);
@@ -164,6 +165,7 @@ body {
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }

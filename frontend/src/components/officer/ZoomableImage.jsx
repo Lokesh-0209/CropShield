@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Maximize2, Move, Image as ImageIcon } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Move, Image as ImageIcon } from 'lucide-react';
 
 /**
  * Zoomable and Pannable Specimen Image Inspector.
@@ -13,25 +13,26 @@ export default function ZoomableImage({ src, alt = 'Field Specimen Photograph', 
 
   const containerRef = useRef(null);
 
-  // Wheel zoom handler
-  const handleWheel = (e) => {
-    e.preventDefault();
-    const zoomStep = 0.25;
-    const delta = e.deltaY < 0 ? zoomStep : -zoomStep;
-    const newZoom = Math.min(Math.max(zoom + delta, minZoom), maxZoom);
-
-    if (newZoom === minZoom) {
-      setOffset({ x: 0, y: 0 });
-    }
-    setZoom(newZoom);
-  };
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
+    const handleWheel = (e) => {
+      e.preventDefault();
+      const zoomStep = 0.25;
+      const delta = e.deltaY < 0 ? zoomStep : -zoomStep;
+      setZoom((prev) => {
+        const next = Math.min(Math.max(prev + delta, minZoom), maxZoom);
+        if (next === minZoom) {
+          setOffset({ x: 0, y: 0 });
+        }
+        return next;
+      });
+    };
+
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, [zoom]);
+  }, [minZoom, maxZoom]);
 
   // Drag pan handlers
   const handleMouseDown = (e) => {
@@ -129,6 +130,9 @@ export default function ZoomableImage({ src, alt = 'Field Specimen Photograph', 
         <img
           src={src}
           alt={alt}
+          width="600"
+          height="400"
+          loading="eager"
           className="zoom-img"
           style={{
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,

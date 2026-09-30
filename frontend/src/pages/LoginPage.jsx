@@ -6,8 +6,14 @@ import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { ErrorState } from '../components/common/ErrorState';
 import { formatErrorMessage } from '../services/api';
+import useDocumentMetadata from '../hooks/useDocumentMetadata';
 
 export default function LoginPage() {
+  useDocumentMetadata({
+    title: 'Sign In — CropShield',
+    description: 'Secure role-based authentication for farmers and agricultural surveillance officers.',
+  });
+
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();

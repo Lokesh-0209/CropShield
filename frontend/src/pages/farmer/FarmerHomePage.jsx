@@ -13,10 +13,17 @@ import { useCases, useWeather, useAlerts } from '../../services/queries';
 import RiskBadge from '../../components/RiskBadge';
 import { Card, CardBody } from '../../components/common/Card';
 import { Skeleton } from '../../components/common/Skeleton';
+import useDocumentMetadata from '../../hooks/useDocumentMetadata';
 
 export default function FarmerHomePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+
+  useDocumentMetadata({
+    title: 'Farmer Home — CropShield Kisan',
+    description: 'Autonomous Crop Disease Surveillance, micro-climate weather risks, and recent diagnosis tracker.',
+  });
+
   const { data: casesData, isLoading: casesLoading } = useCases({ limit: 5 });
   const { data: weatherData } = useWeather();
   const { data: alertsData } = useAlerts({ limit: 2 });

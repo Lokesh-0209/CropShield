@@ -226,7 +226,10 @@ export default function ImageInput({ value, onChange, error: externalError }) {
           <div className="cs-image-preview-frame">
             <img
               src={preview}
-              alt="Selected crop leaf"
+              alt="Selected crop leaf preview"
+              width="400"
+              height="240"
+              loading="eager"
               className="cs-image-preview-img"
               onError={() => setError(t('photo.errors.readError', 'Could not load image.'))}
             />

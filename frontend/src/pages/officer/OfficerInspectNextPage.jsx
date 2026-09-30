@@ -1,29 +1,24 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import {
-  Compass,
   MapPin,
   CheckCircle2,
-  Calendar,
-  AlertTriangle,
-  Sparkles,
   RefreshCw,
   UserCheck,
-  Tag,
-  Navigation,
-  ChevronRight,
+  Sparkles,
 } from 'lucide-react';
 import { useSurveillanceQueue } from '../../services/queries';
 import { PageHeader } from '../../components/common/PageHeader';
 import { Button } from '../../components/common/Button';
 import { Card, CardBody } from '../../components/common/Card';
 import { Toast } from '../../components/common/Toast';
-import RiskBadge from '../../components/RiskBadge';
 import { Skeleton } from '../../components/common/Skeleton';
 import { EmptyState } from '../../components/common/EmptyState';
 import { ErrorState } from '../../components/common/ErrorState';
 import { formatErrorMessage } from '../../services/api';
-import OfficerLeafletMap from '../../components/officer/OfficerLeafletMap';
 import AssignInspectionModal from '../../components/officer/AssignInspectionModal';
+import useDocumentMetadata from '../../hooks/useDocumentMetadata';
+
+const OfficerLeafletMap = lazy(() => import('../../components/officer/OfficerLeafletMap'));
 
 // Curated agronomic reason tags for each surveillance sentinel
 const SURVEILLANCE_REASONS = {
@@ -78,6 +73,11 @@ export default function OfficerInspectNextPage() {
   const [activeAssignField, setActiveAssignField] = useState(null);
   const [selectedField, setSelectedField] = useState(null);
   const [toast, setToast] = useState(null);
+
+  useDocumentMetadata({
+    title: 'Inspect Next Surveillance Priority — Officer Portal',
+    description: 'Prioritized sentinel inspection queues targeting emerging crop pathogen vectors.',
+  });
 
   const rawQueue = useMemo(() => {
     return data?.queue || [];
@@ -218,13 +218,15 @@ export default function OfficerInspectNextPage() {
                 </div>
               </div>
               <CardBody style={{ padding: '0px' }}>
-                <OfficerLeafletMap
-                  surveillanceFields={activeFields}
-                  selectedItem={selectedField}
-                  onSelectItem={(field) => setSelectedField(field)}
-                  mode="inspect"
-                  height={520}
-                />
+                <Suspense fallback={<Skeleton height="520px" width="100%" />}>
+                  <OfficerLeafletMap
+                    surveillanceFields={activeFields}
+                    selectedItem={selectedField}
+                    onSelectItem={(field) => setSelectedField(field)}
+                    mode="inspect"
+                    height={520}
+                  />
+                </Suspense>
               </CardBody>
             </Card>
 

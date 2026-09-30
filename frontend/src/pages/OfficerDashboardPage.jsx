@@ -12,22 +12,20 @@ import {
   ShieldCheck,
   Flame,
   ArrowUpDown,
-  Filter,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
 } from 'lucide-react';
 import { useCases } from '../services/queries';
 import { analyzeCase } from '../api/cases';
 import { CaseStatus, formatErrorMessage } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
-import RiskBadge from '../components/RiskBadge';
 import VerificationModal from '../components/VerificationModal';
 import CaseDetailModal from '../components/CaseDetailModal';
 import { StatCard } from '../components/common/StatCard';
 import { Skeleton } from '../components/common/Skeleton';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
+import useDocumentMetadata from '../hooks/useDocumentMetadata';
 import { PageHeader } from '../components/common/PageHeader';
 import { Button } from '../components/common/Button';
 
@@ -50,6 +48,11 @@ function formatAge(dateString) {
 
 export default function OfficerDashboardPage({ highlightCaseId = null }) {
   const navigate = useNavigate();
+
+  useDocumentMetadata({
+    title: 'Verification Queue — Officer Portal',
+    description: 'Surveillance case verification queue with responsive card view, multi-filtering, and AI diagnostics.',
+  });
 
   // Filters & Search state
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -475,7 +478,10 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
                         {c.image_url ? (
                           <img
                             src={c.image_url}
-                            alt={c.crop}
+                            alt={`Specimen photo of ${c.crop}`}
+                            width="44"
+                            height="44"
+                            loading="lazy"
                             style={{
                               width: '44px',
                               height: '44px',

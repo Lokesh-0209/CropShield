@@ -1,25 +1,28 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import {
   RefreshCw,
   Sliders,
   Layers,
-  MapPin,
-  Calendar,
   HelpCircle,
   Clock,
-  Filter,
 } from 'lucide-react';
 import { useOutbreaks, useCases, useRecalculateOutbreaks } from '../services/queries';
 import { formatErrorMessage } from '../services/api';
-import OfficerLeafletMap from '../components/officer/OfficerLeafletMap';
 import RiskBadge from '../components/RiskBadge';
 import { PageHeader } from '../components/common/PageHeader';
 import { Button } from '../components/common/Button';
 import { ErrorState } from '../components/common/ErrorState';
 import { EmptyState } from '../components/common/EmptyState';
 import { Skeleton } from '../components/common/Skeleton';
+import useDocumentMetadata from '../hooks/useDocumentMetadata';
+
+const OfficerLeafletMap = lazy(() => import('../components/officer/OfficerLeafletMap'));
 
 export default function OutbreakIntelligencePage() {
+  useDocumentMetadata({
+    title: 'Outbreak Intelligence & Clusters — Officer Portal',
+    description: 'Real-time spatial DBSCAN disease clustering, cluster epicenter telemetry, and transmission containment map.',
+  });
   // Human-friendly clustering parameter names
   const [clusterRadiusKm, setClusterRadiusKm] = useState(2.0); // was eps_km
   const [minCasesPerCluster, setMinCasesPerCluster] = useState(3); // was min_samples
@@ -396,17 +399,19 @@ export default function OutbreakIntelligencePage() {
             {isLoading ? (
               <Skeleton height="460px" width="100%" />
             ) : (
-              <OfficerLeafletMap
-                clusters={filteredClusters}
-                cases={filteredCases}
-                selectedItem={selectedCluster}
-                highlightedId={highlightedClusterId}
-                onSelectItem={(item, type) => {
-                  if (type === 'cluster') setSelectedCluster(item);
-                }}
-                height={460}
-                mode="outbreaks"
-              />
+              <Suspense fallback={<Skeleton height="460px" width="100%" />}>
+                <OfficerLeafletMap
+                  clusters={filteredClusters}
+                  cases={filteredCases}
+                  selectedItem={selectedCluster}
+                  highlightedId={highlightedClusterId}
+                  onSelectItem={(item, type) => {
+                    if (type === 'cluster') setSelectedCluster(item);
+                  }}
+                  height={460}
+                  mode="outbreaks"
+                />
+              </Suspense>
             )}
           </div>
 

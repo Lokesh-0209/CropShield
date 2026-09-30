@@ -18,6 +18,7 @@ import { Skeleton } from '../../components/common/Skeleton';
 import { EmptyState } from '../../components/common/EmptyState';
 import { ErrorState } from '../../components/common/ErrorState';
 import { formatErrorMessage } from '../../services/api';
+import useDocumentMetadata from '../../hooks/useDocumentMetadata';
 
 /**
  * Status timeline component:
@@ -73,6 +74,11 @@ function StatusTimeline({ status }) {
 
 export default function FarmerReportsPage() {
   const { t } = useTranslation();
+  useDocumentMetadata({
+    title: 'My Crop Reports — CropShield Kisan',
+    description: 'Surveillance case history, officer verification status, and treatment recommendations.',
+  });
+
   const [filter, setFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [offlineReports, setOfflineReports] = useState([]);
@@ -320,7 +326,10 @@ export default function FarmerReportsPage() {
                     {item.image_url ? (
                       <img
                         src={item.image_url}
-                        alt={item.crop}
+                        alt={`Photo of ${item.crop}`}
+                        width="68"
+                        height="68"
+                        loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         onError={(e) => {
                           e.target.style.display = 'none';
