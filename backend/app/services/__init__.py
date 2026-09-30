@@ -20,6 +20,7 @@ from app.services.outbreak_intelligence_service import (
     OutbreakIntelligenceService,
     get_outbreak_intelligence_service,
 )
+from app.services.alert_service import AlertService, get_alert_service
 
 __all__ = [
     "CaseService",
@@ -38,4 +39,6 @@ __all__ = [
     "get_case_analysis_service",
     "OutbreakIntelligenceService",
     "get_outbreak_intelligence_service",
+    "AlertService",
+    "get_alert_service",
 ]

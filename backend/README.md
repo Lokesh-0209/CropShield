@@ -789,3 +789,117 @@ Case Ready for Review Queue (ANALYZED -> NEEDS_VERIFICATION)
 - **Fail-Safe Invariance:** If AI inference cannot proceed due to missing model configuration, unreadable images, or preprocessing errors, the database record is **never** partially altered. Status remains `PENDING_ANALYSIS`.
 - **Separation of Concerns:** `AIInferenceService` handles computer vision, `RiskService` handles deterministic environmental threat scoring, and `CaseAnalysisService` coordinates their lifecycle execution.
 
+---
+
+## 12. Warning / Alert Layer
+
+CropShield generates actionable outbreak warning alerts from the existing Outbreak Intelligence pipeline. Warnings are derived **entirely** from `ClusterIntelligence` — no additional clustering, risk, or severity algorithms are introduced.
+
+### 12.1 Warning Generation Flow
+
+```text
+VERIFIED cases (Supabase)
+        ↓
+DBSCAN spatial clustering (OutbreakService)
+        ↓
+Cluster Intelligence (OutbreakIntelligenceService)
+  ├── dominant_disease (by frequency)
+  ├── average_risk_score
+  ├── highest_risk_level
+  └── outbreak_level (HIGH / MEDIUM / LOW)
+        ↓
+Warning Alert Generation (AlertService)
+  ├── outbreak_level → warning severity (1:1 mapping)
+  ├── deterministic title & message
+  └── cluster context preserved
+        ↓
+GET /api/alerts  →  AlertListResponse
+GET /api/alerts/{cluster_id}  →  WarningAlert | 404
+```
+
+### 12.2 Severity Mapping
+
+The outbreak level from `ClusterIntelligence` maps directly to the warning severity:
+
+| Outbreak Level | Warning Severity | Title |
+| :---: | :---: | :--- |
+| `HIGH` | `HIGH` | High Disease Risk Detected |
+| `MEDIUM` | `MEDIUM` | Moderate Disease Risk Detected |
+| `LOW` | `LOW` | Low Disease Risk — Informational |
+
+### 12.3 API Endpoint: `GET /api/alerts`
+
+Returns all outbreak warning alerts for the current verified-case dataset.
+
+#### Query Parameters:
+
+| Parameter | Type | Default | Description |
+| :--- | :---: | :---: | :--- |
+| `eps_km` | `float` | `2.0` | DBSCAN neighborhood radius in kilometers |
+| `min_samples` | `int` | `3` | Minimum verified cases to form a cluster |
+
+#### Request Example:
+```bash
+curl -X GET "http://127.0.0.1:8000/api/alerts?eps_km=2.0&min_samples=3"
+```
+
+#### Response Example (200 OK):
+```json
+{
+  "alerts": [
+    {
+      "warning_id": "cluster-0",
+      "cluster_id": 0,
+      "outbreak_level": "HIGH",
+      "title": "High Disease Risk Detected",
+      "message": "4 verified cases of Leaf Blight detected in a nearby cluster. Average risk score: 76.5.",
+      "center_latitude": 17.385,
+      "center_longitude": 78.486,
+      "case_count": 4,
+      "dominant_disease": "Leaf Blight",
+      "average_risk_score": 76.5,
+      "created_at": "2026-09-30T04:30:00.000000+00:00"
+    }
+  ]
+}
+```
+
+*If no verified clusters exist, returns `{"alerts": []}`.*
+
+---
+
+### 12.4 API Endpoint: `GET /api/alerts/{cluster_id}`
+
+Returns the outbreak warning for a specific cluster by its ID.
+
+#### Path Parameters:
+
+| Parameter | Type | Description |
+| :--- | :---: | :--- |
+| `cluster_id` | `int` | Cluster identifier index (0-indexed) |
+
+#### Request Example:
+```bash
+curl -X GET "http://127.0.0.1:8000/api/alerts/0"
+```
+
+#### Response Example (200 OK):
+```json
+{
+  "warning_id": "cluster-0",
+  "cluster_id": 0,
+  "outbreak_level": "HIGH",
+  "title": "High Disease Risk Detected",
+  "message": "4 verified cases of Leaf Blight detected in a nearby cluster. Average risk score: 76.5.",
+  "center_latitude": 17.385,
+  "center_longitude": 78.486,
+  "case_count": 4,
+  "dominant_disease": "Leaf Blight",
+  "average_risk_score": 76.5,
+  "created_at": "2026-09-30T04:30:00.000000+00:00"
+}
+```
+
+*Returns **404 Not Found** if the specified `cluster_id` does not exist in the current intelligence results.*
+
+---
