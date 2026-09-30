@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Radar,
   RefreshCw,
-  Layers,
-  AlertOctagon,
   Sliders,
-  ShieldAlert,
-  Info,
+  AlertCircle,
+  Layers,
+  MapPin,
 } from 'lucide-react';
 import { getOutbreakIntelligence } from '../api/outbreaks';
 import { listCases } from '../api/cases';
@@ -29,8 +27,6 @@ export default function OutbreakIntelligencePage() {
     setErrorMessage(null);
 
     try {
-      // 1. Fetch synthesized intelligence: GET /api/outbreaks/intelligence
-      // 2. Fetch cases to render pins on the radar map
       const [intelRes, caseListRes] = await Promise.allSettled([
         getOutbreakIntelligence({ eps_km: epsKm, min_samples: minSamples }),
         listCases({ limit: 100 }),
@@ -63,42 +59,38 @@ export default function OutbreakIntelligencePage() {
   }, [fetchOutbreakData]);
 
   return (
-    <div className="page-container">
-      {/* Page Header */}
-      <div className="page-header-row">
-        <div>
-          <h1 className="page-title">
-            <Radar className="title-icon text-emerald" />
-            Outbreak Intelligence & Spatial Clustering
-          </h1>
-          <p className="page-description">
-            Spatial epidemiology engine applying DBSCAN with Haversine spherical distance over confirmed
-            VERIFIED crop cases to isolate active contagion vectors.
+    <div className="page-shell">
+      {/* Header */}
+      <div className="page-header">
+        <div className="page-header-text">
+          <h1 className="page-heading">Outbreak Intelligence</h1>
+          <p className="page-lead">
+            Spatial disease clusters identified by DBSCAN density analysis over confirmed field cases.
           </p>
         </div>
 
         <button
           type="button"
-          className="btn btn-secondary btn-refresh"
+          className="btn btn-secondary btn-sm"
           onClick={fetchOutbreakData}
           disabled={isLoading}
         >
-          <RefreshCw size={15} className={`icon-mr ${isLoading ? 'spin' : ''}`} />
-          Recalculate Clusters
+          <RefreshCw size={14} className={`icon-mr ${isLoading ? 'spin' : ''}`} />
+          Recalculate
         </button>
       </div>
 
-      {/* DBSCAN Parameter Tuning Toolbar */}
-      <div className="dbscan-controls-bar">
-        <div className="dbscan-controls-title">
-          <Sliders size={16} className="text-emerald" />
-          <span>DBSCAN Clustering Hyperparameters:</span>
+      {/* DBSCAN Parameters Bar */}
+      <div className="parameters-card">
+        <div className="parameters-title">
+          <Sliders size={15} className="text-muted" />
+          <span className="font-semibold text-sm">Clustering Parameters:</span>
         </div>
 
-        <div className="dbscan-inputs-row">
-          <div className="dbscan-param">
+        <div className="parameters-controls">
+          <div className="param-item">
             <label htmlFor="eps-km" className="param-label">
-              Neighborhood Radius (<code>eps_km</code>): <strong>{epsKm} km</strong>
+              Radius (<code>eps_km</code>): <strong>{epsKm} km</strong>
             </label>
             <input
               id="eps-km"
@@ -106,15 +98,15 @@ export default function OutbreakIntelligencePage() {
               min="0.5"
               max="20.0"
               step="0.5"
-              className="param-slider"
+              className="range-input"
               value={epsKm}
               onChange={(e) => setEpsKm(parseFloat(e.target.value))}
             />
           </div>
 
-          <div className="dbscan-param">
+          <div className="param-item">
             <label htmlFor="min-samples" className="param-label">
-              Density Threshold (<code>min_samples</code>): <strong>{minSamples} cases</strong>
+              Min Cases (<code>min_samples</code>): <strong>{minSamples}</strong>
             </label>
             <input
               id="min-samples"
@@ -122,7 +114,7 @@ export default function OutbreakIntelligencePage() {
               min="1"
               max="10"
               step="1"
-              className="param-slider"
+              className="range-input"
               value={minSamples}
               onChange={(e) => setMinSamples(parseInt(e.target.value, 10))}
             />
@@ -130,23 +122,23 @@ export default function OutbreakIntelligencePage() {
 
           <button
             type="button"
-            className="btn btn-sm btn-primary"
+            className="btn btn-xs btn-primary ml-auto"
             onClick={fetchOutbreakData}
             disabled={isLoading}
           >
-            Apply Parameters
+            Apply
           </button>
         </div>
       </div>
 
       {/* Error state */}
       {errorMessage && (
-        <div className="form-error-banner mb-4" role="alert">
-          <AlertOctagon size={18} />
+        <div className="alert-box alert-box-error mb-4" role="alert">
+          <AlertCircle size={18} className="flex-shrink-0" />
           <span>{errorMessage}</span>
           <button
             type="button"
-            className="btn btn-sm btn-secondary ml-auto"
+            className="btn btn-xs btn-secondary ml-auto"
             onClick={fetchOutbreakData}
           >
             Retry
@@ -154,10 +146,10 @@ export default function OutbreakIntelligencePage() {
         </div>
       )}
 
-      {/* Spatial Visualization + Cluster Cards Layout */}
-      <div className="intel-layout-grid">
-        {/* Geographic / Radar Map Component */}
-        <div className="intel-map-section">
+      {/* Main Grid: Map + Clusters */}
+      <div className="outbreak-grid">
+        {/* Geographic Map */}
+        <div className="panel outbreak-map-panel">
           <LocationMap
             clusters={intelligence}
             cases={cases}
@@ -165,47 +157,36 @@ export default function OutbreakIntelligencePage() {
             onSelectItem={(item, type) => {
               if (type === 'cluster') setSelectedCluster(item);
             }}
-            height={420}
+            height={400}
           />
-
-          <div className="map-footnote">
-            <Info size={14} className="text-muted" />
-            <span>
-              Centroids are computed from verified case coordinates using Haversine spherical metrics.
-              Hover over circles to view spatial coordinates.
-            </span>
-          </div>
         </div>
 
-        {/* Intelligence Cards Section */}
-        <div className="intel-clusters-section">
-          <div className="section-subtitle-row">
-            <Layers size={18} className="text-emerald" />
-            <h2 className="section-heading">Synthesized Outbreak Clusters</h2>
-            <span className="count-tag">{intelligence.length} Active Hotspot(s)</span>
+        {/* Cluster Information List */}
+        <div className="panel outbreak-list-panel">
+          <div className="panel-header-clean">
+            <div className="flex-center gap-2">
+              <Layers size={17} className="text-primary" />
+              <h2 className="panel-title">Active Clusters</h2>
+            </div>
+            <span className="count-badge">{intelligence.length} detected</span>
           </div>
 
           {isLoading ? (
-            <div className="loading-state">
+            <div className="panel-loading">
               <span className="spinner" />
-              <p>Computing DBSCAN spatial clusters...</p>
+              <p>Analyzing spatial clusters...</p>
             </div>
           ) : intelligence.length === 0 ? (
-            <div className="empty-state-card">
-              <ShieldAlert size={36} className="text-amber" />
-              <h3>No Outbreak Clusters Detected</h3>
-              <p>
-                DBSCAN requires at least <strong>{minSamples} verified cases</strong> within a{' '}
-                <strong>{epsKm} km radius</strong>.
+            <div className="panel-empty p-6">
+              <MapPin size={36} className="text-muted mb-2" />
+              <h3 className="empty-heading">No Outbreak Clusters</h3>
+              <p className="empty-body">
+                DBSCAN groups cases requiring at least {minSamples} verified cases within {epsKm} km.
+                Verify reported cases in the <strong>Cases</strong> queue to initiate cluster formation.
               </p>
-              <div className="empty-help-box">
-                <strong>Next Step:</strong> Ensure cases are in <code>VERIFIED</code> status in the{' '}
-                <strong>Officer Queue</strong> and lie in geographic proximity. You can also lower{' '}
-                <code>min_samples</code> to <code>1</code> or <code>2</code> above to inspect isolated points.
-              </div>
             </div>
           ) : (
-            <div className="clusters-list">
+            <div className="cluster-card-stack">
               {intelligence.map((cluster) => {
                 const isSelected =
                   selectedCluster && selectedCluster.cluster_id === cluster.cluster_id;
@@ -213,76 +194,59 @@ export default function OutbreakIntelligencePage() {
                 return (
                   <div
                     key={cluster.cluster_id}
-                    className={`card cluster-card ${isSelected ? 'cluster-card-selected' : ''}`}
+                    className={`cluster-item-card ${isSelected ? 'cluster-selected' : ''}`}
                     onClick={() => setSelectedCluster(cluster)}
                   >
-                    <div className="cluster-header">
-                      <div className="cluster-badge-group">
-                        <span className="cluster-id-badge">
-                          Cluster #{cluster.cluster_id}
-                        </span>
-                        <span className="cluster-count-badge">
-                          {cluster.case_count} Verified Case{cluster.case_count !== 1 ? 's' : ''}
+                    <div className="cluster-item-top">
+                      <div className="cluster-id-wrap">
+                        <span className="cluster-id-text">Cluster #{cluster.cluster_id}</span>
+                        <span className="cluster-case-count">
+                          {cluster.case_count} case{cluster.case_count !== 1 ? 's' : ''}
                         </span>
                       </div>
 
                       <RiskBadge
                         level={cluster.outbreak_level}
                         score={cluster.average_risk_score}
-                        size="md"
+                        size="sm"
                       />
                     </div>
 
-                    <div className="cluster-body">
-                      <div className="cluster-stat-row">
-                        <span className="stat-label">Dominant Crop Pathogen:</span>
-                        <strong className="dominant-disease-name">
+                    <div className="cluster-item-body">
+                      <div className="cluster-row">
+                        <span className="text-muted text-xs">Dominant Pathogen:</span>
+                        <strong className="text-main text-sm">
                           {cluster.dominant_disease || 'Unknown'}
                         </strong>
                       </div>
 
-                      <div className="cluster-stat-row">
-                        <span className="stat-label">Cluster Center Coordinates:</span>
-                        <span className="font-mono text-muted">
+                      <div className="cluster-row">
+                        <span className="text-muted text-xs">Centroid Coordinates:</span>
+                        <span className="font-mono text-xs text-body">
                           {cluster.center_latitude.toFixed(4)}°N,{' '}
                           {cluster.center_longitude.toFixed(4)}°E
                         </span>
                       </div>
 
-                      <div className="cluster-stat-row">
-                        <span className="stat-label">Highest Case Risk Level:</span>
-                        <span className="font-medium">{cluster.highest_risk_level}</span>
-                      </div>
-
-                      <div className="cluster-stat-row">
-                        <span className="stat-label">Mean Outbreak Risk Score:</span>
-                        <div className="score-meter-wrap">
-                          <span className="score-num font-mono">
-                            {cluster.average_risk_score.toFixed(1)} / 100
-                          </span>
-                          <div className="meter-bar">
-                            <div
-                              className={`meter-fill meter-risk-${(cluster.outbreak_level || 'low').toLowerCase()}`}
-                              style={{
-                                width: `${Math.min(100, cluster.average_risk_score)}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
+                      <div className="cluster-row">
+                        <span className="text-muted text-xs">Average Risk Score:</span>
+                        <span className="font-mono text-xs font-semibold">
+                          {cluster.average_risk_score.toFixed(1)} / 100
+                        </span>
                       </div>
 
                       {cluster.case_ids && cluster.case_ids.length > 0 && (
-                        <div className="case-ids-row">
-                          <span className="label-xs">Associated Case IDs:</span>
-                          <div className="case-id-tags">
-                            {cluster.case_ids.slice(0, 5).map((id) => (
-                              <code key={id} className="case-id-tag">
-                                {id.substring(0, 8)}...
+                        <div className="cluster-cases-preview">
+                          <span className="text-muted text-xs">Case IDs:</span>
+                          <div className="cluster-tags">
+                            {cluster.case_ids.slice(0, 4).map((id) => (
+                              <code key={id} className="case-mini-tag">
+                                {id.substring(0, 8)}
                               </code>
                             ))}
-                            {cluster.case_ids.length > 5 && (
-                              <span className="text-muted text-xs">
-                                +{cluster.case_ids.length - 5} more
+                            {cluster.case_ids.length > 4 && (
+                              <span className="text-xs text-muted">
+                                +{cluster.case_ids.length - 4} more
                               </span>
                             )}
                           </div>

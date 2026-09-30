@@ -7,11 +7,11 @@ export default function LocationMap({
   cases = [],
   selectedItem = null,
   onSelectItem = null,
-  height = 360,
+  height = 380,
 }) {
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
-  // Compute bounding box
+  // Compute bounding box and normalizations
   const { points, bounds, viewTransform } = useMemo(() => {
     const allPts = [];
 
@@ -23,7 +23,8 @@ export default function LocationMap({
           raw: c,
           lat: c.center_latitude,
           lng: c.center_longitude,
-          title: `Cluster #${c.cluster_id} (${c.dominant_disease || 'Outbreak'})`,
+          title: `Cluster #${c.cluster_id}`,
+          disease: c.dominant_disease || 'Outbreak',
           cases: c.case_count,
           level: c.outbreak_level || c.highest_risk_level || 'MEDIUM',
         });
@@ -47,7 +48,6 @@ export default function LocationMap({
     });
 
     if (allPts.length === 0) {
-      // Default to standard agricultural coordinates (e.g. Bangalore / Kolar region: 12.97, 77.59)
       return {
         points: [],
         bounds: { minLat: 12.8, maxLat: 13.2, minLng: 77.4, maxLng: 77.8 },
@@ -67,21 +67,19 @@ export default function LocationMap({
       if (p.lng > maxLng) maxLng = p.lng;
     });
 
-    // Add padding to bounds
     const latSpan = Math.max(maxLat - minLat, 0.05);
     const lngSpan = Math.max(maxLng - minLng, 0.05);
-    minLat -= latSpan * 0.2;
-    maxLat += latSpan * 0.2;
-    minLng -= lngSpan * 0.2;
-    maxLng += lngSpan * 0.2;
+    minLat -= latSpan * 0.18;
+    maxLat += latSpan * 0.18;
+    minLng -= lngSpan * 0.18;
+    maxLng += lngSpan * 0.18;
 
-    const width = 600;
+    const width = 640;
     const h = height;
-    const padding = 45;
+    const padding = 40;
 
     const transform = (lat, lng) => {
       const x = padding + ((lng - minLng) / (maxLng - minLng)) * (width - padding * 2);
-      // Invert Y because latitude goes north/up
       const y = h - padding - ((lat - minLat) / (maxLat - minLat)) * (h - padding * 2);
       return { x, y };
     };
@@ -96,141 +94,130 @@ export default function LocationMap({
   const getColorForLevel = (level) => {
     switch ((level || '').toUpperCase()) {
       case RiskLevel.HIGH:
-        return { fill: 'rgba(239, 68, 68, 0.25)', stroke: '#ef4444', text: '#fca5a5' };
+        return { fill: 'rgba(239, 68, 68, 0.12)', stroke: '#dc2626', text: '#991b1b', bg: '#fef2f2' };
       case RiskLevel.MEDIUM:
-        return { fill: 'rgba(245, 158, 11, 0.25)', stroke: '#f59e0b', text: '#fde68a' };
+        return { fill: 'rgba(245, 158, 11, 0.14)', stroke: '#d97706', text: '#92400e', bg: '#fffbeb' };
       case RiskLevel.LOW:
       default:
-        return { fill: 'rgba(16, 185, 129, 0.25)', stroke: '#10b981', text: '#6ee7b7' };
+        return { fill: 'rgba(22, 163, 74, 0.12)', stroke: '#16a34a', text: '#166534', bg: '#f0fdf4' };
     }
   };
 
   return (
-    <div className="location-map-card">
-      <div className="map-toolbar">
-        <div className="map-title-row">
-          <Navigation size={16} className="map-title-icon" />
-          <span className="map-title-text">Spatial Surveillance Radar</span>
-          <span className="map-count-badge">
-            {clusters.length} Cluster{clusters.length !== 1 ? 's' : ''} &bull; {cases.length} Case
-            {cases.length !== 1 ? 's' : ''}
+    <div className="clean-map-container">
+      {/* Map Header / Legend */}
+      <div className="clean-map-header">
+        <div className="flex-center gap-2">
+          <Navigation size={15} className="text-primary" />
+          <span className="font-semibold text-sm">Spatial Cluster Map</span>
+          <span className="text-muted text-xs">
+            ({clusters.length} clusters, {cases.length} cases)
           </span>
         </div>
-        <div className="map-legend">
-          <span className="legend-item">
-            <span className="legend-dot dot-high"></span> High Outbreak
+
+        <div className="clean-map-legend">
+          <span className="legend-chip">
+            <span className="legend-swatch swatch-high" /> High Risk
           </span>
-          <span className="legend-item">
-            <span className="legend-dot dot-medium"></span> Medium
+          <span className="legend-chip">
+            <span className="legend-swatch swatch-medium" /> Medium
           </span>
-          <span className="legend-item">
-            <span className="legend-dot dot-low"></span> Low
+          <span className="legend-chip">
+            <span className="legend-swatch swatch-low" /> Low
           </span>
-          <span className="legend-item">
-            <span className="legend-pin"></span> Field Case
+          <span className="legend-chip">
+            <span className="legend-swatch swatch-case" /> Case Pin
           </span>
         </div>
       </div>
 
-      <div className="map-canvas-container" style={{ height: `${height}px` }}>
+      {/* SVG Canvas */}
+      <div className="clean-map-canvas" style={{ height: `${height}px` }}>
         <svg
-          viewBox={`0 0 600 ${height}`}
-          className="map-svg"
+          viewBox={`0 0 640 ${height}`}
+          className="clean-svg"
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label="Geographic outbreak cluster radar"
+          aria-label="Geographic outbreak cluster map"
         >
           <defs>
-            <radialGradient id="radarSweep" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.1" />
-              <stop offset="80%" stopColor="#10b981" stopOpacity="0.03" />
-              <stop offset="100%" stopColor="transparent" stopOpacity="0" />
-            </radialGradient>
-            <pattern id="mapGrid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1" />
+            <pattern id="lightGrid" width="32" height="32" patternUnits="userSpaceOnUse">
+              <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#f1f5f9" strokeWidth="1" />
             </pattern>
           </defs>
 
-          {/* Grid Background */}
-          <rect width="600" height={height} fill="#0d1424" />
-          <rect width="600" height={height} fill="url(#mapGrid)" />
+          {/* Clean Light Background */}
+          <rect width="640" height={height} fill="#fcfcfd" />
+          <rect width="640" height={height} fill="url(#lightGrid)" />
 
-          {/* Radar Circles */}
-          <circle cx="300" cy={height / 2} r={Math.min(220, height * 0.42)} fill="url(#radarSweep)" stroke="rgba(16, 185, 129, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
-          <circle cx="300" cy={height / 2} r={Math.min(130, height * 0.25)} fill="none" stroke="rgba(16, 185, 129, 0.2)" strokeWidth="1" />
+          {/* Coordinate Axes */}
+          <line x1="40" y1={height - 35} x2="600" y2={height - 35} stroke="#e2e8f0" strokeWidth="1" />
+          <line x1="40" y1="30" x2="40" y2={height - 35} stroke="#e2e8f0" strokeWidth="1" />
 
-          {/* Crosshairs */}
-          <line x1="300" y1="20" x2="300" y2={height - 20} stroke="rgba(255, 255, 255, 0.08)" strokeDasharray="4 4" />
-          <line x1="30" y1={height / 2} x2="570" y2={height / 2} stroke="rgba(255, 255, 255, 0.08)" strokeDasharray="4 4" />
-
-          {/* Coordinate Marks */}
-          <text x="35" y="30" fill="rgba(255, 255, 255, 0.35)" fontSize="10" fontFamily="monospace">
-            {bounds.maxLat.toFixed(3)}°N, {bounds.minLng.toFixed(3)}°E
+          {/* Coordinate labels */}
+          <text x="45" y="24" fill="#94a3b8" fontSize="11" fontFamily="monospace">
+            {bounds.maxLat.toFixed(2)}°N, {bounds.minLng.toFixed(2)}°E
           </text>
-          <text x="440" y={height - 20} fill="rgba(255, 255, 255, 0.35)" fontSize="10" fontFamily="monospace">
-            {bounds.minLat.toFixed(3)}°N, {bounds.maxLng.toFixed(3)}°E
+          <text x="510" y={height - 18} fill="#94a3b8" fontSize="11" fontFamily="monospace">
+            {bounds.minLat.toFixed(2)}°N, {bounds.maxLng.toFixed(2)}°E
           </text>
 
-          {/* Empty State message inside SVG if no data */}
+          {/* Empty notice if no data */}
           {points.length === 0 && (
-            <g transform={`translate(300, ${height / 2})`}>
-              <text textAnchor="middle" y="-10" fill="#94a3b8" fontSize="13" fontWeight="500">
-                Awaiting Verified Disease Clusters
+            <g transform={`translate(320, ${height / 2})`}>
+              <text textAnchor="middle" y="-6" fill="#64748b" fontSize="14" fontWeight="600">
+                No Geographic Clusters Active
               </text>
-              <text textAnchor="middle" y="14" fill="#64748b" fontSize="11">
-                Submit cases & verify them to generate DBSCAN spatial clusters
+              <text textAnchor="middle" y="16" fill="#94a3b8" fontSize="12">
+                Verify submitted cases to generate DBSCAN spatial clusters
               </text>
             </g>
           )}
 
-          {/* Render Cluster Zones */}
+          {/* Render Cluster Boundary Circles */}
           {points
             .filter((p) => p.type === 'cluster')
             .map((p) => {
               const { x, y } = viewTransform(p.lat, p.lng);
               const colors = getColorForLevel(p.level);
-              const radius = Math.min(50, Math.max(24, (p.cases || 3) * 7));
+              const radius = Math.min(54, Math.max(26, (p.cases || 3) * 8));
               const isSelected = selectedItem && selectedItem.cluster_id === p.raw.cluster_id;
 
               return (
                 <g
                   key={p.id}
-                  className="cluster-svg-group"
+                  className="cluster-group"
                   onClick={() => onSelectItem && onSelectItem(p.raw, 'cluster')}
                   onMouseEnter={() => setHoveredPoint(p)}
                   onMouseLeave={() => setHoveredPoint(null)}
                   style={{ cursor: 'pointer' }}
                 >
-                  {/* Outer pulse */}
                   <circle
                     cx={x}
                     cy={y}
                     r={radius}
                     fill={colors.fill}
                     stroke={colors.stroke}
-                    strokeWidth={isSelected ? 3 : 1.5}
-                    className="cluster-radar-pulse"
+                    strokeWidth={isSelected ? 2.5 : 1.5}
                   />
-                  {/* Center Dot */}
-                  <circle cx={x} cy={y} r="5" fill={colors.stroke} />
-                  {/* Cluster Label */}
+                  <circle cx={x} cy={y} r="4.5" fill={colors.stroke} />
                   <rect
-                    x={x - 30}
-                    y={y + radius + 3}
-                    width="60"
+                    x={x - 34}
+                    y={y + radius + 4}
+                    width="68"
                     height="18"
-                    rx="9"
-                    fill="#0f172a"
+                    rx="4"
+                    fill="#ffffff"
                     stroke={colors.stroke}
                     strokeWidth="1"
                   />
                   <text
                     x={x}
-                    y={y + radius + 15}
+                    y={y + radius + 16}
                     textAnchor="middle"
                     fill={colors.text}
-                    fontSize="9"
-                    fontWeight="bold"
+                    fontSize="10"
+                    fontWeight="700"
                   >
                     Cluster #{p.raw.cluster_id} ({p.cases})
                   </text>
@@ -238,18 +225,18 @@ export default function LocationMap({
               );
             })}
 
-          {/* Render Individual Case Markers */}
+          {/* Render Case Markers */}
           {points
             .filter((p) => p.type === 'case')
             .map((p) => {
               const { x, y } = viewTransform(p.lat, p.lng);
               const isVerified = p.status === 'VERIFIED';
-              const strokeColor = isVerified ? '#10b981' : '#f59e0b';
+              const pinColor = isVerified ? '#15803d' : '#d97706';
 
               return (
                 <g
                   key={p.id}
-                  className="case-svg-pin"
+                  className="case-pin"
                   onClick={() => onSelectItem && onSelectItem(p.raw, 'case')}
                   onMouseEnter={() => setHoveredPoint(p)}
                   onMouseLeave={() => setHoveredPoint(null)}
@@ -259,30 +246,30 @@ export default function LocationMap({
                     cx={x}
                     cy={y}
                     r="4"
-                    fill={strokeColor}
+                    fill={pinColor}
                     stroke="#ffffff"
-                    strokeWidth="1"
+                    strokeWidth="1.5"
                   />
                 </g>
               );
             })}
         </svg>
 
-        {/* Hover Tooltip Overlay */}
+        {/* Hover Tooltip */}
         {hoveredPoint && (
-          <div className="map-tooltip">
-            <div className="tooltip-header">
+          <div className="clean-map-tooltip">
+            <div className="tooltip-title">
               {hoveredPoint.type === 'cluster' ? (
-                <Layers size={13} className="tooltip-icon" />
+                <Layers size={13} className="text-primary" />
               ) : (
-                <MapPin size={13} className="tooltip-icon" />
+                <MapPin size={13} className="text-primary" />
               )}
-              <strong>{hoveredPoint.title}</strong>
+              <span>{hoveredPoint.title}</span>
             </div>
-            <div className="tooltip-body">
-              <div>Coords: {hoveredPoint.lat.toFixed(4)}, {hoveredPoint.lng.toFixed(4)}</div>
+            <div className="tooltip-content">
               {hoveredPoint.type === 'cluster' ? (
                 <>
+                  <div>Pathogen: <strong>{hoveredPoint.disease}</strong></div>
                   <div>Verified Cases: {hoveredPoint.cases}</div>
                   <div>Outbreak Severity: <strong>{hoveredPoint.level}</strong></div>
                 </>
@@ -292,6 +279,9 @@ export default function LocationMap({
                   {hoveredPoint.location && <div>Location: {hoveredPoint.location}</div>}
                 </>
               )}
+              <div className="text-muted text-xs font-mono mt-1">
+                {hoveredPoint.lat.toFixed(4)}°, {hoveredPoint.lng.toFixed(4)}°
+              </div>
             </div>
           </div>
         )}

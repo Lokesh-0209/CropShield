@@ -1,14 +1,14 @@
+import { useState } from 'react';
 import {
-  ShieldCheck,
-  Sprout,
-  Users,
-  Radar,
-  AlertTriangle,
-  Sliders,
+  Shield,
+  PlusCircle,
+  ClipboardList,
+  MapPin,
+  Bell,
+  SlidersHorizontal,
   Menu,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
 import BackendStatusBanner from './BackendStatusBanner';
 
 export default function Navbar({
@@ -23,34 +23,34 @@ export default function Navbar({
   const navItems = [
     {
       id: 'farmer',
-      label: 'Farmer Submission',
-      icon: Sprout,
+      label: 'Submit Case',
+      icon: PlusCircle,
       badge: null,
     },
     {
       id: 'officer',
-      label: 'Officer Queue',
-      icon: Users,
+      label: 'Cases',
+      icon: ClipboardList,
       badge: needsVerificationCount > 0 ? needsVerificationCount : null,
       badgeVariant: 'warning',
     },
     {
       id: 'outbreaks',
-      label: 'Outbreak Intelligence',
-      icon: Radar,
+      label: 'Outbreaks',
+      icon: MapPin,
       badge: null,
     },
     {
       id: 'alerts',
-      label: 'Warning Alerts',
-      icon: AlertTriangle,
+      label: 'Alerts',
+      icon: Bell,
       badge: alertsCount > 0 ? alertsCount : null,
       badgeVariant: 'danger',
     },
     {
       id: 'risk-sim',
       label: 'Risk Simulator',
-      icon: Sliders,
+      icon: SlidersHorizontal,
       badge: null,
     },
   ];
@@ -61,21 +61,18 @@ export default function Navbar({
   };
 
   return (
-    <header className="navbar-container">
-      <div className="navbar-inner">
+    <header className="navbar">
+      <div className="navbar-container">
         {/* Brand */}
-        <div className="brand-group" onClick={() => handleSelect('farmer')} style={{ cursor: 'pointer' }}>
-          <div className="brand-logo-glow">
-            <ShieldCheck size={26} className="brand-icon" />
+        <div className="navbar-brand" onClick={() => handleSelect('farmer')} style={{ cursor: 'pointer' }}>
+          <div className="brand-icon-wrap">
+            <Shield size={20} className="brand-icon" />
           </div>
-          <div className="brand-text-col">
-            <span className="brand-title">CropShield</span>
-            <span className="brand-subtitle">Disease Intelligence & Outbreak Prevention</span>
-          </div>
+          <span className="brand-name">CropShield</span>
         </div>
 
-        {/* Desktop Nav */}
-        <nav className="desktop-nav" aria-label="Main Navigation">
+        {/* Clean Desktop Navigation Links */}
+        <nav className="navbar-nav" aria-label="Main Navigation">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -83,13 +80,13 @@ export default function Navbar({
               <button
                 key={item.id}
                 type="button"
-                className={`nav-link ${isActive ? 'nav-link-active' : ''}`}
+                className={`nav-item ${isActive ? 'nav-item-active' : ''}`}
                 onClick={() => handleSelect(item.id)}
               >
-                <Icon size={16} className="nav-icon" />
+                <Icon size={16} className="nav-item-icon" />
                 <span>{item.label}</span>
                 {item.badge !== null && (
-                  <span className={`nav-pill nav-pill-${item.badgeVariant || 'default'}`}>
+                  <span className={`nav-badge badge-${item.badgeVariant || 'neutral'}`}>
                     {item.badge}
                   </span>
                 )}
@@ -98,15 +95,15 @@ export default function Navbar({
           })}
         </nav>
 
-        {/* Health status & Mobile Toggle */}
-        <div className="nav-right">
+        {/* Right side: Compact Health Status */}
+        <div className="navbar-right">
           <BackendStatusBanner onStatusChange={onBackendStatusChange} />
 
           <button
             type="button"
-            className="mobile-toggle-btn"
+            className="mobile-menu-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle navigation menu"
+            aria-label="Toggle navigation"
           >
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -115,7 +112,7 @@ export default function Navbar({
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="mobile-nav-drawer">
+        <div className="mobile-drawer">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -123,13 +120,15 @@ export default function Navbar({
               <button
                 key={item.id}
                 type="button"
-                className={`mobile-nav-link ${isActive ? 'active' : ''}`}
+                className={`mobile-nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => handleSelect(item.id)}
               >
-                <Icon size={18} />
-                <span>{item.label}</span>
+                <div className="flex-center gap-2">
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </div>
                 {item.badge !== null && (
-                  <span className={`nav-pill nav-pill-${item.badgeVariant || 'default'}`}>
+                  <span className={`nav-badge badge-${item.badgeVariant || 'neutral'}`}>
                     {item.badge}
                   </span>
                 )}

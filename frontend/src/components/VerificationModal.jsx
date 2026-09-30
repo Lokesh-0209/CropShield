@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, XCircle, HelpCircle, X, ShieldAlert, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, HelpCircle, X, AlertCircle } from 'lucide-react';
 import { VerificationStatus } from '../types/enums';
 import { verifyCase } from '../api/cases';
 import RiskBadge from './RiskBadge';
@@ -15,7 +15,7 @@ export default function VerificationModal({ caseItem, onClose, onVerified }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!officerNote.trim()) {
-      setErrorMessage('Officer review note is mandatory.');
+      setErrorMessage('Officer verification note is required.');
       return;
     }
 
@@ -40,20 +40,17 @@ export default function VerificationModal({ caseItem, onClose, onVerified }) {
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div className="modal-card">
+      <div className="modal-dialog">
         <div className="modal-header">
-          <div className="modal-title-group">
-            <ShieldAlert className="modal-icon text-amber" />
-            <div>
-              <h2 id="modal-title" className="modal-title">Officer Verification Review</h2>
-              <p className="modal-subtitle">Case ID: <code>{caseItem.id}</code></p>
-            </div>
+          <div>
+            <h2 id="modal-title" className="modal-title">Verify Case</h2>
+            <p className="modal-subtitle">Case ID: <code>{caseItem.id}</code></p>
           </div>
           <button
             type="button"
-            className="modal-close-btn"
+            className="modal-close"
             onClick={onClose}
-            aria-label="Close modal"
+            aria-label="Close dialog"
           >
             <X size={18} />
           </button>
@@ -62,108 +59,116 @@ export default function VerificationModal({ caseItem, onClose, onVerified }) {
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             {/* Case Snapshot */}
-            <div className="case-snapshot-box">
-              <div className="snapshot-row">
-                <span className="snapshot-label">Crop & Stage:</span>
-                <span className="snapshot-value">
-                  <strong>{caseItem.crop}</strong> &bull; {caseItem.growth_stage}
+            <div className="summary-box">
+              <div className="summary-row">
+                <span className="summary-label">Crop & Growth Stage</span>
+                <span className="summary-val font-semibold">
+                  {caseItem.crop} &bull; {caseItem.growth_stage}
                 </span>
               </div>
-              <div className="snapshot-row">
-                <span className="snapshot-label">Location:</span>
-                <span className="snapshot-value">{caseItem.location_name}</span>
+              <div className="summary-row">
+                <span className="summary-label">Field Location</span>
+                <span className="summary-val">{caseItem.location_name}</span>
               </div>
-              <div className="snapshot-row">
-                <span className="snapshot-label">AI Diagnosis:</span>
-                <span className="snapshot-value font-mono">
-                  {caseItem.disease || 'Pending analysis'}
+              <div className="summary-row">
+                <span className="summary-label">AI Diagnosis</span>
+                <span className="summary-val">
+                  <strong>{caseItem.disease || 'Unspecified'}</strong>
                   {caseItem.confidence && ` (${Math.round(caseItem.confidence * 100)}% conf.)`}
                 </span>
               </div>
-              <div className="snapshot-row">
-                <span className="snapshot-label">Risk Assessment:</span>
-                <span className="snapshot-value">
+              <div className="summary-row">
+                <span className="summary-label">Assessed Risk</span>
+                <span className="summary-val">
                   <RiskBadge level={caseItem.risk_level} score={caseItem.risk_score} size="sm" />
                 </span>
               </div>
-              <div className="snapshot-row">
-                <span className="snapshot-label">Reported Symptoms:</span>
-                <span className="snapshot-value snapshot-symptoms">{caseItem.symptoms}</span>
+              <div className="summary-row">
+                <span className="summary-label">Reported Symptoms</span>
+                <span className="summary-val text-muted text-xs summary-symptoms">
+                  {caseItem.symptoms}
+                </span>
               </div>
             </div>
 
-            {/* Verification Decision Radios / Buttons */}
-            <div className="form-group">
-              <label className="form-label">
-                Verification Decision <span className="text-danger">*</span>
+            {/* Decision Selection */}
+            <div className="field-group">
+              <label className="field-label">
+                Officer Decision <span className="req">*</span>
               </label>
-              <div className="decision-grid">
+              <div className="decision-cards-stack">
                 <button
                   type="button"
-                  className={`decision-option decision-verify ${
-                    selectedStatus === VerificationStatus.VERIFIED ? 'selected' : ''
+                  className={`decision-card ${
+                    selectedStatus === VerificationStatus.VERIFIED ? 'decision-card-active' : ''
                   }`}
                   onClick={() => setSelectedStatus(VerificationStatus.VERIFIED)}
                 >
-                  <CheckCircle2 size={18} />
-                  <div className="decision-text">
-                    <span className="decision-heading">Verify Outbreak</span>
-                    <span className="decision-sub">Confirmed pathogen; contributes to DBSCAN cluster</span>
+                  <CheckCircle2 size={18} className="text-primary flex-shrink-0" />
+                  <div className="decision-card-text">
+                    <span className="decision-card-name">Verify Case</span>
+                    <span className="decision-card-desc">
+                      Confirmed disease. Case will be aggregated into spatial outbreak clusters.
+                    </span>
                   </div>
                 </button>
 
                 <button
                   type="button"
-                  className={`decision-option decision-reject ${
-                    selectedStatus === VerificationStatus.REJECTED ? 'selected' : ''
+                  className={`decision-card ${
+                    selectedStatus === VerificationStatus.REJECTED ? 'decision-card-active active-danger' : ''
                   }`}
                   onClick={() => setSelectedStatus(VerificationStatus.REJECTED)}
                 >
-                  <XCircle size={18} />
-                  <div className="decision-text">
-                    <span className="decision-heading">Reject Case</span>
-                    <span className="decision-sub">Benign damage, nutrient deficiency, or false alarm</span>
+                  <XCircle size={18} className="text-danger flex-shrink-0" />
+                  <div className="decision-card-text">
+                    <span className="decision-card-name">Reject Case</span>
+                    <span className="decision-card-desc">
+                      Deemed benign, non-pathogenic, or a false alarm.
+                    </span>
                   </div>
                 </button>
 
                 <button
                   type="button"
-                  className={`decision-option decision-info ${
-                    selectedStatus === VerificationStatus.MORE_INFO_REQUIRED ? 'selected' : ''
+                  className={`decision-card ${
+                    selectedStatus === VerificationStatus.MORE_INFO_REQUIRED ? 'decision-card-active active-warning' : ''
                   }`}
                   onClick={() => setSelectedStatus(VerificationStatus.MORE_INFO_REQUIRED)}
                 >
-                  <HelpCircle size={18} />
-                  <div className="decision-text">
-                    <span className="decision-heading">More Info Required</span>
-                    <span className="decision-sub">Request leaf underside photo or sample lab testing</span>
+                  <HelpCircle size={18} className="text-amber flex-shrink-0" />
+                  <div className="decision-card-text">
+                    <span className="decision-card-name">Request More Information</span>
+                    <span className="decision-card-desc">
+                      Request clearer leaf underside images or follow-up inspection.
+                    </span>
                   </div>
                 </button>
               </div>
             </div>
 
             {/* Officer Note */}
-            <div className="form-group">
-              <label htmlFor="officer-note" className="form-label">
-                Officer Notes & Justification <span className="text-danger">*</span>
+            <div className="field-group">
+              <label htmlFor="officer-note" className="field-label">
+                Officer Review Notes <span className="req">*</span>
               </label>
               <textarea
                 id="officer-note"
-                className="form-textarea"
+                className="field-textarea"
                 rows={3}
                 maxLength={2000}
                 required
-                placeholder="Detail observations, microscopic confirmation, fungicide recommendation, or reasons for rejection..."
+                placeholder="Document your observations, diagnosis confirmation, or instructions for the farmer..."
                 value={officerNote}
                 onChange={(e) => setOfficerNote(e.target.value)}
               />
-              <div className="char-count">
-                {officerNote.length} / 2000 characters (min 1 required)
+              <div className="text-right text-xs text-muted mt-1">
+                {officerNote.length} / 2000 characters
               </div>
             </div>
 
             {errorMessage && (
-              <div className="form-error-banner" role="alert">
+              <div className="alert-box alert-box-error" role="alert">
                 <AlertCircle size={16} />
                 <span>{errorMessage}</span>
               </div>
@@ -184,7 +189,7 @@ export default function VerificationModal({ caseItem, onClose, onVerified }) {
               className="btn btn-primary"
               disabled={isSubmitting || !officerNote.trim()}
             >
-              {isSubmitting ? 'Submitting Review...' : `Submit as ${selectedStatus}`}
+              {isSubmitting ? 'Saving...' : 'Submit Verification'}
             </button>
           </div>
         </form>

@@ -1,14 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  AlertTriangle,
   RefreshCw,
-  Flame,
-  ShieldAlert,
-  ShieldCheck,
   Calendar,
   Layers,
   ArrowRight,
-  Filter,
+  ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { listAlerts } from '../api/alerts';
 import { RiskLevel } from '../types/enums';
@@ -37,7 +34,6 @@ export default function AlertsPage({ onNavigateToOutbreaks }) {
     fetchAlerts();
   }, [fetchAlerts]);
 
-  // Filter alerts by outbreak_level
   const filteredAlerts = useMemo(() => {
     if (severityFilter === 'ALL') return alerts;
     return alerts.filter(
@@ -45,81 +41,41 @@ export default function AlertsPage({ onNavigateToOutbreaks }) {
     );
   }, [alerts, severityFilter]);
 
-  // Statistics
-  const alertStats = useMemo(() => {
-    const total = alerts.length;
-    const high = alerts.filter(
-      (a) => (a.outbreak_level || '').toUpperCase() === RiskLevel.HIGH
-    ).length;
-    const medium = alerts.filter(
-      (a) => (a.outbreak_level || '').toUpperCase() === RiskLevel.MEDIUM
-    ).length;
-    const low = alerts.filter(
-      (a) => (a.outbreak_level || '').toUpperCase() === RiskLevel.LOW
-    ).length;
-    return { total, high, medium, low };
-  }, [alerts]);
-
   return (
-    <div className="page-container">
-      {/* Page Header */}
-      <div className="page-header-row">
-        <div>
-          <h1 className="page-title">
-            <AlertTriangle className="title-icon text-danger" />
-            Outbreak Warnings & Phytosanitary Advisories
-          </h1>
-          <p className="page-description">
-            Automated alerts synthesized from active spatial clusters. Dispatched to agricultural
-            extension agents and farming communities for prompt quarantine and mitigation.
+    <div className="page-shell">
+      {/* Header */}
+      <div className="page-header">
+        <div className="page-header-text">
+          <h1 className="page-heading">Alerts & Advisories</h1>
+          <p className="page-lead">
+            Regional outbreak incident advisories generated automatically from confirmed disease clusters.
           </p>
         </div>
 
         <button
           type="button"
-          className="btn btn-secondary btn-refresh"
+          className="btn btn-secondary btn-sm"
           onClick={fetchAlerts}
           disabled={isLoading}
         >
-          <RefreshCw size={15} className={`icon-mr ${isLoading ? 'spin' : ''}`} />
-          Refresh Alerts
+          <RefreshCw size={14} className={`icon-mr ${isLoading ? 'spin' : ''}`} />
+          Refresh
         </button>
       </div>
 
-      {/* Severity Metrics Bar */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-label">Total Active Advisories</div>
-          <div className="stat-number">{alertStats.total}</div>
-        </div>
-        <div className="stat-card stat-card-danger">
-          <div className="stat-label">Critical Outbreak Alerts (HIGH)</div>
-          <div className="stat-number text-danger">{alertStats.high}</div>
-        </div>
-        <div className="stat-card stat-card-warning">
-          <div className="stat-label">Elevated Warnings (MEDIUM)</div>
-          <div className="stat-number text-amber">{alertStats.medium}</div>
-        </div>
-        <div className="stat-card stat-card-success">
-          <div className="stat-label">Surveillance Notices (LOW)</div>
-          <div className="stat-number text-emerald">{alertStats.low}</div>
-        </div>
-      </div>
-
-      {/* Severity Filter Toolbar */}
-      <div className="table-toolbar">
-        <div className="filter-pill-group">
-          <Filter size={15} className="filter-icon text-muted" />
+      {/* Filter Chips */}
+      <div className="filter-bar mb-4">
+        <div className="filter-chips">
           {[
-            { id: 'ALL', label: 'All Severities' },
-            { id: RiskLevel.HIGH, label: 'High Severity Only' },
-            { id: RiskLevel.MEDIUM, label: 'Medium Severity Only' },
-            { id: RiskLevel.LOW, label: 'Low Severity Only' },
+            { id: 'ALL', label: `All Alerts (${alerts.length})` },
+            { id: RiskLevel.HIGH, label: 'High Severity' },
+            { id: RiskLevel.MEDIUM, label: 'Medium Severity' },
+            { id: RiskLevel.LOW, label: 'Low Severity' },
           ].map((item) => (
             <button
               key={item.id}
               type="button"
-              className={`filter-btn ${severityFilter === item.id ? 'active' : ''}`}
+              className={`chip ${severityFilter === item.id ? 'chip-active' : ''}`}
               onClick={() => setSeverityFilter(item.id)}
             >
               {item.label}
@@ -128,14 +84,14 @@ export default function AlertsPage({ onNavigateToOutbreaks }) {
         </div>
       </div>
 
-      {/* Error Banner */}
+      {/* Error state */}
       {errorMessage && (
-        <div className="form-error-banner mb-4" role="alert">
-          <AlertTriangle size={18} />
+        <div className="alert-box alert-box-error mb-4" role="alert">
+          <AlertCircle size={18} className="flex-shrink-0" />
           <span>{errorMessage}</span>
           <button
             type="button"
-            className="btn btn-sm btn-secondary ml-auto"
+            className="btn btn-xs btn-secondary ml-auto"
             onClick={fetchAlerts}
           >
             Retry
@@ -145,80 +101,69 @@ export default function AlertsPage({ onNavigateToOutbreaks }) {
 
       {/* Alerts Feed */}
       {isLoading ? (
-        <div className="loading-state card">
+        <div className="panel panel-loading">
           <span className="spinner" />
-          <p>Scanning cluster warnings from CropShield API...</p>
+          <p>Scanning active outbreak warnings...</p>
         </div>
       ) : filteredAlerts.length === 0 ? (
-        <div className="card empty-state">
-          <ShieldCheck size={42} className="text-emerald" />
-          <h3>No Active Warning Alerts</h3>
-          <p>
+        <div className="panel panel-empty">
+          <ShieldCheck size={40} className="text-primary mb-2" />
+          <h3 className="empty-heading">No Active Warnings</h3>
+          <p className="empty-body">
             {alerts.length === 0
-              ? 'No active outbreak clusters have triggered warnings. Warnings are automatically generated as verified cases form spatial clusters.'
-              : 'No alerts match your selected severity filter.'}
+              ? 'No active outbreak alerts in your monitoring zones. Alerts are dispatched once verified cases form geographic clusters.'
+              : 'No alerts match your selected severity level.'}
           </p>
         </div>
       ) : (
-        <div className="alerts-feed-grid">
+        <div className="incident-feed-stack">
           {filteredAlerts.map((alert) => {
             const severity = (alert.outbreak_level || 'LOW').toUpperCase();
-            const isHigh = severity === RiskLevel.HIGH;
 
             return (
               <div
                 key={alert.warning_id || alert.cluster_id}
-                className={`card alert-card alert-card-${severity.toLowerCase()} ${
-                  isHigh ? 'alert-card-pulse' : ''
-                }`}
+                className={`incident-card severity-${severity.toLowerCase()}`}
               >
-                {/* Alert Card Header */}
-                <div className="alert-header">
-                  <div className="alert-title-row">
-                    {isHigh ? (
-                      <Flame size={20} className="alert-icon text-danger" />
-                    ) : severity === RiskLevel.MEDIUM ? (
-                      <AlertTriangle size={20} className="alert-icon text-amber" />
-                    ) : (
-                      <ShieldAlert size={20} className="alert-icon text-emerald" />
-                    )}
+                {/* Header Row */}
+                <div className="incident-top">
+                  <div className="incident-title-row">
+                    <span className={`severity-stripe severity-${severity.toLowerCase()}`} />
                     <div>
-                      <h2 className="alert-title">{alert.title}</h2>
-                      <div className="alert-id-tag">
-                        Warning Ref: <code>{alert.warning_id}</code> &bull; Cluster #{alert.cluster_id}
-                      </div>
+                      <h3 className="incident-title">{alert.title}</h3>
+                      <span className="incident-ref">
+                        Ref: {alert.warning_id} &bull; Cluster #{alert.cluster_id}
+                      </span>
                     </div>
                   </div>
 
                   <RiskBadge
                     level={alert.outbreak_level}
                     score={alert.average_risk_score}
-                    size="lg"
+                    size="sm"
                   />
                 </div>
 
-                {/* Message Body */}
-                <div className="alert-message-box">
-                  <p className="alert-message-text">{alert.message}</p>
-                </div>
+                {/* Message text */}
+                <p className="incident-message">{alert.message}</p>
 
-                {/* Alert Metrics Grid */}
-                <div className="alert-metrics-grid">
-                  <div className="metric-box">
-                    <span className="metric-label">Dominant Crop Pathogen</span>
-                    <strong className="metric-value font-mono text-emerald">
+                {/* Metadata Row */}
+                <div className="incident-meta-grid">
+                  <div className="incident-meta-item">
+                    <span className="meta-k">Dominant Pathogen</span>
+                    <strong className="meta-v text-primary">
                       {alert.dominant_disease || 'Unknown'}
                     </strong>
                   </div>
 
-                  <div className="metric-box">
-                    <span className="metric-label">Confirmed Cases in Cluster</span>
-                    <strong className="metric-value">{alert.case_count} Verified</strong>
+                  <div className="incident-meta-item">
+                    <span className="meta-k">Affected Cases</span>
+                    <strong className="meta-v">{alert.case_count} confirmed</strong>
                   </div>
 
-                  <div className="metric-box">
-                    <span className="metric-label">Mean Epidemiological Risk</span>
-                    <strong className="metric-value font-mono">
+                  <div className="incident-meta-item">
+                    <span className="meta-k">Mean Risk</span>
+                    <strong className="meta-v font-mono">
                       {typeof alert.average_risk_score === 'number'
                         ? alert.average_risk_score.toFixed(1)
                         : alert.average_risk_score}{' '}
@@ -226,41 +171,40 @@ export default function AlertsPage({ onNavigateToOutbreaks }) {
                     </strong>
                   </div>
 
-                  <div className="metric-box">
-                    <span className="metric-label">Centroid Coordinates</span>
-                    <span className="metric-value font-mono text-muted">
+                  <div className="incident-meta-item">
+                    <span className="meta-k">Cluster Coordinates</span>
+                    <span className="meta-v font-mono text-muted">
                       {typeof alert.center_latitude === 'number'
-                        ? alert.center_latitude.toFixed(4)
+                        ? alert.center_latitude.toFixed(3)
                         : alert.center_latitude}
-                      °N,{' '}
+                      °,{' '}
                       {typeof alert.center_longitude === 'number'
-                        ? alert.center_longitude.toFixed(4)
+                        ? alert.center_longitude.toFixed(3)
                         : alert.center_longitude}
-                      °E
+                      °
                     </span>
                   </div>
                 </div>
 
-                {/* Footer with Timestamp and Action */}
-                <div className="alert-footer">
-                  <div className="alert-timestamp">
+                {/* Footer with timestamp & navigation */}
+                <div className="incident-footer">
+                  <span className="incident-timestamp">
                     <Calendar size={13} className="text-muted" />
                     <span>
-                      Generated:{' '}
                       {alert.created_at
                         ? new Date(alert.created_at).toLocaleString()
-                        : 'Active Outbreak Window'}
+                        : 'Active Advisory'}
                     </span>
-                  </div>
+                  </span>
 
                   {onNavigateToOutbreaks && (
                     <button
                       type="button"
-                      className="btn btn-sm btn-secondary"
+                      className="btn-link-sm"
                       onClick={() => onNavigateToOutbreaks()}
                     >
-                      <Layers size={14} className="icon-mr" />
-                      View on Surveillance Map
+                      <Layers size={13} className="icon-mr" />
+                      View on Outbreak Map
                       <ArrowRight size={13} className="icon-ml" />
                     </button>
                   )}

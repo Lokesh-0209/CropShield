@@ -26,10 +26,10 @@ export default function StatusBadge({ status, size = 'md' }) {
 
   return (
     <span
-      className={`status-badge status-${meta.variant} status-size-${size}`}
+      className={`status-pill status-${meta.variant} size-${size}`}
       title={meta.description || meta.label}
     >
-      <IconComponent className="badge-icon" aria-hidden="true" />
+      <IconComponent size={size === 'sm' ? 12 : 14} className="pill-icon" />
       <span>{meta.label}</span>
     </span>
   );

@@ -5,8 +5,8 @@ import {
   Droplets,
   CloudRain,
   Users,
-  Flame,
   AlertCircle,
+  Play,
 } from 'lucide-react';
 import { calculateRisk } from '../api/risk';
 import RiskBadge from '../components/RiskBadge';
@@ -50,50 +50,44 @@ export default function RiskSimulatorPage() {
   };
 
   return (
-    <div className="page-container">
-      {/* Page Header */}
-      <div className="page-header-row">
-        <div>
-          <h1 className="page-title">
-            <Sliders className="title-icon text-emerald" />
-            Epidemiological Risk Simulator
-          </h1>
-          <p className="page-description">
-            Directly test the deterministic backend algorithm (<code>POST /api/risk/analyze</code>)
-            combining micro-climate indices with local verified infection density.
+    <div className="page-shell">
+      {/* Header */}
+      <div className="page-header">
+        <div className="page-header-text">
+          <h1 className="page-heading">Risk Matrix Simulator</h1>
+          <p className="page-lead">
+            Evaluate pathogen vulnerability by simulating weather conditions, crop maturity, and local infection density.
           </p>
         </div>
       </div>
 
-      <div className="two-col-layout">
-        {/* Left: Interactive Controls */}
-        <div className="card form-card">
+      <div className="page-layout-two-col">
+        {/* Left: Input Form */}
+        <div className="panel form-panel">
           <form onSubmit={handleSimulate}>
-            <div className="form-section-title">Environmental & Crop Variables</div>
-
-            <div className="form-row-2">
-              <div className="form-group">
-                <label htmlFor="sim-crop" className="form-label">
+            <div className="form-grid-2">
+              <div className="field-group">
+                <label htmlFor="sim-crop" className="field-label">
                   Target Crop
                 </label>
                 <input
                   id="sim-crop"
                   type="text"
-                  className="form-input"
+                  className="field-input"
                   required
                   value={params.crop}
                   onChange={(e) => setParams({ ...params, crop: e.target.value })}
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="sim-growth" className="form-label">
+              <div className="field-group">
+                <label htmlFor="sim-growth" className="field-label">
                   Growth Stage
                 </label>
                 <input
                   id="sim-growth"
                   type="text"
-                  className="form-input"
+                  className="field-input"
                   required
                   value={params.growth_stage}
                   onChange={(e) => setParams({ ...params, growth_stage: e.target.value })}
@@ -101,20 +95,20 @@ export default function RiskSimulatorPage() {
               </div>
             </div>
 
-            {/* Sliders */}
-            <div className="slider-group-card">
-              <div className="slider-header-row">
-                <span className="slider-title">
-                  <Thermometer size={14} className="text-amber" /> Ambient Temperature
+            {/* Range Sliders */}
+            <div className="slider-box">
+              <div className="flex-between mb-2">
+                <span className="field-label-sm flex-center gap-1">
+                  <Thermometer size={14} className="text-muted" /> Ambient Temperature
                 </span>
-                <span className="slider-val-badge font-mono">{params.temperature}°C</span>
+                <span className="slider-reading">{params.temperature}°C</span>
               </div>
               <input
                 type="range"
                 min="-10"
                 max="50"
                 step="0.5"
-                className="param-slider"
+                className="range-input"
                 value={params.temperature}
                 onChange={(e) =>
                   setParams({ ...params, temperature: parseFloat(e.target.value) })
@@ -122,19 +116,19 @@ export default function RiskSimulatorPage() {
               />
             </div>
 
-            <div className="slider-group-card mt-3">
-              <div className="slider-header-row">
-                <span className="slider-title">
-                  <Droplets size={14} className="text-emerald" /> Relative Humidity
+            <div className="slider-box mt-3">
+              <div className="flex-between mb-2">
+                <span className="field-label-sm flex-center gap-1">
+                  <Droplets size={14} className="text-muted" /> Relative Humidity
                 </span>
-                <span className="slider-val-badge font-mono">{params.humidity}%</span>
+                <span className="slider-reading">{params.humidity}%</span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="100"
                 step="1"
-                className="param-slider"
+                className="range-input"
                 value={params.humidity}
                 onChange={(e) =>
                   setParams({ ...params, humidity: parseFloat(e.target.value) })
@@ -142,19 +136,19 @@ export default function RiskSimulatorPage() {
               />
             </div>
 
-            <div className="slider-group-card mt-3">
-              <div className="slider-header-row">
-                <span className="slider-title">
-                  <CloudRain size={14} className="text-info" /> Recent Precipitation (Rainfall)
+            <div className="slider-box mt-3">
+              <div className="flex-between mb-2">
+                <span className="field-label-sm flex-center gap-1">
+                  <CloudRain size={14} className="text-muted" /> Recent Precipitation
                 </span>
-                <span className="slider-val-badge font-mono">{params.rainfall} mm</span>
+                <span className="slider-reading">{params.rainfall} mm</span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="100"
                 step="1"
-                className="param-slider"
+                className="range-input"
                 value={params.rainfall}
                 onChange={(e) =>
                   setParams({ ...params, rainfall: parseFloat(e.target.value) })
@@ -162,21 +156,19 @@ export default function RiskSimulatorPage() {
               />
             </div>
 
-            <div className="slider-group-card mt-3">
-              <div className="slider-header-row">
-                <span className="slider-title">
-                  <Users size={14} className="text-danger" /> Nearby Verified Cases in Zone
+            <div className="slider-box mt-3">
+              <div className="flex-between mb-2">
+                <span className="field-label-sm flex-center gap-1">
+                  <Users size={14} className="text-muted" /> Nearby Verified Cases
                 </span>
-                <span className="slider-val-badge font-mono">
-                  {params.nearby_verified_cases} cases
-                </span>
+                <span className="slider-reading">{params.nearby_verified_cases} cases</span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="25"
                 step="1"
-                className="param-slider"
+                className="range-input"
                 value={params.nearby_verified_cases}
                 onChange={(e) =>
                   setParams({
@@ -188,7 +180,7 @@ export default function RiskSimulatorPage() {
             </div>
 
             {errorMessage && (
-              <div className="form-error-banner mt-3" role="alert">
+              <div className="alert-box alert-box-error mt-3" role="alert">
                 <AlertCircle size={16} />
                 <span>{errorMessage}</span>
               </div>
@@ -200,14 +192,11 @@ export default function RiskSimulatorPage() {
               disabled={isCalculating}
             >
               {isCalculating ? (
-                <>
-                  <span className="spinner-sm" />
-                  <span>Computing Risk Matrix...</span>
-                </>
+                'Calculating Risk Model...'
               ) : (
                 <>
-                  <Flame size={18} className="icon-mr" />
-                  <span>Simulate Risk Assessment</span>
+                  <Play size={16} className="icon-mr" />
+                  <span>Run Risk Model</span>
                 </>
               )}
             </button>
@@ -215,74 +204,64 @@ export default function RiskSimulatorPage() {
         </div>
 
         {/* Right: Simulation Output */}
-        <div className="card result-card">
-          <div className="card-header-clean">
-            <Flame size={18} className="text-amber" />
-            <h2 className="card-heading">Risk Matrix Simulation Output</h2>
-          </div>
-
+        <div className="panel result-panel">
           {result ? (
-            <div className="simulation-result-view animate-fade-in">
-              <div className="result-score-hero">
-                <div className="score-hero-label">Computed Composite Vulnerability</div>
-                <div className="score-hero-number font-mono">{result.risk_score}</div>
-                <div className="score-hero-denom">/ 100 Scale</div>
-                <div className="mt-3">
-                  <RiskBadge level={result.risk_level} score={result.risk_score} size="lg" />
-                </div>
+            <div className="result-card-inner animate-fade-in">
+              <div className="result-badge-top">
+                <span>Deterministic Model Output</span>
               </div>
 
-              {/* Meter */}
-              <div className="meter-bar-lg mt-4">
+              <div className="result-hero-box text-center py-6">
+                <span className="result-section-label">Calculated Outbreak Risk Score</span>
+                <div className="score-hero-val">{result.risk_score}</div>
+                <div className="text-xs text-muted mb-3">Scale 0 &ndash; 100</div>
+                <RiskBadge level={result.risk_level} score={result.risk_score} size="lg" />
+              </div>
+
+              {/* Progress bar */}
+              <div className="progress-track mt-3">
                 <div
-                  className={`meter-fill meter-risk-${(result.risk_level || 'low').toLowerCase()}`}
+                  className={`progress-fill progress-${(result.risk_level || 'low').toLowerCase()}`}
                   style={{ width: `${Math.min(100, result.risk_score)}%` }}
                 />
               </div>
 
-              <div className="bands-legend mt-4">
-                <div className="band-col">
-                  <span className="band-dot bg-emerald"></span>
-                  <span className="band-name">Low (0-39)</span>
+              <div className="risk-bands-row mt-4">
+                <div className="band-label-item">
+                  <span className="dot dot-low" /> Low (0-39)
                 </div>
-                <div className="band-col">
-                  <span className="band-dot bg-amber"></span>
-                  <span className="band-name">Medium (40-69)</span>
+                <div className="band-label-item">
+                  <span className="dot dot-medium" /> Medium (40-69)
                 </div>
-                <div className="band-col">
-                  <span className="band-dot bg-danger"></span>
-                  <span className="band-name">High (70-100)</span>
+                <div className="band-label-item">
+                  <span className="dot dot-high" /> High (70-100)
                 </div>
               </div>
 
-              <div className="simulation-breakdown-card mt-4">
-                <div className="breakdown-title">Vulnerability Drivers</div>
-                <ul className="breakdown-list">
+              <div className="insight-card mt-4">
+                <h4 className="insight-title">Model Findings</h4>
+                <ul className="insight-bullets">
                   <li>
-                    High humidity ({params.humidity}%) & precipitation ({params.rainfall} mm)
-                    foster fungal sporulation and spore motility.
+                    Humidity ({params.humidity}%) and rainfall ({params.rainfall} mm) promote fungal
+                    spore dissemination across {params.crop}.
                   </li>
                   <li>
                     {params.nearby_verified_cases > 0
-                      ? `${params.nearby_verified_cases} active verified case(s) contribute elevated pathogen inoculum pressure.`
-                      : 'Zero nearby confirmed cases minimize community contagion.'}
-                  </li>
-                  <li>
-                    Crop physiological stage (<code>{params.growth_stage}</code>) influences canopy
-                    density and micro-climate shading.
+                      ? `${params.nearby_verified_cases} active verified case(s) elevate nearby spore pressure.`
+                      : 'No nearby verified cases reduces local contagion potential.'}
                   </li>
                 </ul>
               </div>
             </div>
           ) : (
-            <div className="empty-analysis-placeholder">
-              <div className="placeholder-icon-circle">
-                <Sliders size={32} className="text-emerald" />
+            <div className="result-empty-state">
+              <div className="empty-icon-circle">
+                <Sliders size={26} className="text-primary" />
               </div>
-              <h3 className="placeholder-title">Ready for Simulation</h3>
-              <p className="placeholder-text">
-                Adjust weather parameters and local infection density on the left, then click{' '}
-                <strong>"Simulate Risk Assessment"</strong> to invoke the backend model.
+              <h3 className="empty-heading">Awaiting Simulation</h3>
+              <p className="empty-body">
+                Adjust weather parameters and confirmed case density on the left, then click{' '}
+                <strong>"Run Risk Model"</strong> to test the deterministic backend endpoint.
               </p>
             </div>
           )}

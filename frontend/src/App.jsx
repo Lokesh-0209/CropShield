@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
-import DemoFlowStepper from './components/DemoFlowStepper';
 import FarmerSubmissionPage from './pages/FarmerSubmissionPage';
 import OfficerDashboardPage from './pages/OfficerDashboardPage';
 import OutbreakIntelligencePage from './pages/OutbreakIntelligencePage';
@@ -24,7 +23,7 @@ function App() {
     setToast({ message, type, id: Date.now() });
     setTimeout(() => {
       setToast((prev) => (prev?.id === toast?.id ? null : prev));
-    }, 4500);
+    }, 4000);
   };
 
   // Fetch summary counts for navigation badges
@@ -56,7 +55,7 @@ function App() {
 
   useEffect(() => {
     fetchBadgeCounts();
-    const interval = setInterval(fetchBadgeCounts, 15000);
+    const interval = setInterval(fetchBadgeCounts, 20000);
     return () => clearInterval(interval);
   }, [fetchBadgeCounts]);
 
@@ -64,7 +63,7 @@ function App() {
     setHighlightCaseId(caseItem.id);
     fetchBadgeCounts();
     showToast(
-      `Case #${caseItem.id.substring(0, 8)} created & analyzed: ${caseItem.disease || 'Analyzed'} (${caseItem.risk_level} Risk)`,
+      `Case submitted: ${caseItem.disease || 'Analyzed'} (${caseItem.risk_level} Risk)`,
       'success'
     );
   };
@@ -82,7 +81,7 @@ function App() {
 
   return (
     <div className="cropshield-app">
-      {/* Top Navigation */}
+      {/* Clean Top Navigation */}
       <Navbar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -94,14 +93,8 @@ function App() {
         }}
       />
 
-      {/* Interactive Hackathon Demo Stepper */}
-      <DemoFlowStepper
-        currentTab={activeTab}
-        onSelectTab={setActiveTab}
-      />
-
       {/* Main Content Area */}
-      <main className="app-main-content">
+      <main className="app-main">
         {activeTab === 'farmer' && (
           <FarmerSubmissionPage
             onCaseCreated={handleCaseCreated}
@@ -124,7 +117,7 @@ function App() {
 
       {/* Toast Feedback */}
       {toast && (
-        <div className={`toast toast-${toast.type} animate-slide-up`} role="alert">
+        <div className={`toast toast-${toast.type} animate-fade-in`} role="alert">
           <div className="toast-text">{toast.message}</div>
           <button
             type="button"
@@ -137,18 +130,14 @@ function App() {
         </div>
       )}
 
-      {/* Footer */}
+      {/* Clean Light Footer */}
       <footer className="app-footer">
-        <div className="footer-inner">
-          <div className="footer-left">
-            <strong>CropShield</strong> &bull; Autonomous Crop Disease Surveillance & Outbreak Detection
+        <div className="footer-container">
+          <div className="footer-brand">
+            <strong>CropShield</strong> &mdash; Agricultural Disease Surveillance & Outbreak Intelligence
           </div>
-          <div className="footer-right">
-            <span>
-              Connected API Target: <code>{API_BASE_URL}</code> ({isBackendOnline ? 'Online' : 'Offline'})
-            </span>
-            <span className="footer-dot">&bull;</span>
-            <span>Vite + React 19 Engine</span>
+          <div className="footer-meta">
+            <span>API: <code>{API_BASE_URL}</code> ({isBackendOnline ? 'Online' : 'Offline'})</span>
           </div>
         </div>
       </footer>

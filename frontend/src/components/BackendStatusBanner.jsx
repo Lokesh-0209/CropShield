@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Activity, AlertOctagon, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, X } from 'lucide-react';
 import { getHealthStatus } from '../api/health';
 import { API_BASE_URL } from '../api/client';
 
@@ -7,7 +7,7 @@ export default function BackendStatusBanner({ onStatusChange }) {
   const [status, setStatus] = useState('checking'); // 'online' | 'offline' | 'checking'
   const [serviceInfo, setServiceInfo] = useState(null);
   const [lastChecked, setLastChecked] = useState(null);
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const checkConnection = useCallback(async () => {
     setStatus('checking');
@@ -31,81 +31,76 @@ export default function BackendStatusBanner({ onStatusChange }) {
 
   useEffect(() => {
     checkConnection();
-    const interval = setInterval(checkConnection, 20000);
+    const interval = setInterval(checkConnection, 25000);
     return () => clearInterval(interval);
   }, [checkConnection]);
 
-  if (status === 'online') {
-    return (
-      <div className="health-pill health-pill-online" title={`Connected to ${API_BASE_URL} (${serviceInfo})`}>
-        <span className="pulse-dot pulse-green"></span>
-        <CheckCircle2 size={13} className="health-icon" />
-        <span className="health-text">API Online ({serviceInfo})</span>
-        <button
-          type="button"
-          onClick={checkConnection}
-          className="health-refresh-btn"
-          aria-label="Refresh backend status"
-          title={`Last checked: ${lastChecked}. Click to ping again.`}
-        >
-          <RefreshCw size={11} />
-        </button>
-      </div>
-    );
-  }
-
-  if (status === 'checking') {
-    return (
-      <div className="health-pill health-pill-checking" title="Pinging backend...">
-        <span className="pulse-dot pulse-amber"></span>
-        <Activity size={13} className="health-icon spin" />
-        <span className="health-text">Connecting to backend...</span>
-      </div>
-    );
-  }
-
   return (
-    <div className="health-wrapper">
-      <div className="health-pill health-pill-offline" title={`Cannot connect to ${API_BASE_URL}`}>
-        <span className="pulse-dot pulse-red"></span>
-        <AlertOctagon size={13} className="health-icon" />
-        <span className="health-text">API Offline ({API_BASE_URL})</span>
+    <div className="health-indicator-wrap">
+      {status === 'online' && (
         <button
           type="button"
+          className="health-status-btn status-online"
           onClick={checkConnection}
-          className="health-refresh-btn"
-          title="Retry connecting to backend"
+          title={`Connected to ${API_BASE_URL} (${serviceInfo}). Last checked: ${lastChecked}. Click to refresh.`}
         >
-          <RefreshCw size={12} />
+          <span className="status-dot dot-online" />
+          <span className="status-text">API Online</span>
         </button>
-      </div>
+      )}
 
-      {!isDismissed && (
-        <div className="backend-offline-banner">
-          <div className="offline-content">
-            <AlertOctagon className="offline-icon" size={20} />
-            <div className="offline-text">
-              <strong>Backend Disconnected:</strong> Cannot reach CropShield API at <code>{API_BASE_URL}</code>.
-              To start the backend, run: <code>uvicorn app.main:app --reload</code> in the <code>backend/</code> directory.
+      {status === 'checking' && (
+        <div className="health-status-btn status-checking" title="Connecting to backend API...">
+          <RefreshCw size={12} className="spin text-muted" />
+          <span className="status-text">Connecting...</span>
+        </div>
+      )}
+
+      {status === 'offline' && (
+        <div className="health-status-group">
+          <button
+            type="button"
+            className="health-status-btn status-offline"
+            onClick={() => setShowHelp(!showHelp)}
+            title="Backend disconnected. Click for instructions."
+          >
+            <span className="status-dot dot-offline" />
+            <span className="status-text">API Offline</span>
+          </button>
+
+          {showHelp && (
+            <div className="health-help-popover">
+              <div className="help-popover-header">
+                <div className="help-popover-title">
+                  <AlertCircle size={15} className="text-danger" />
+                  <span>Backend Unreachable</span>
+                </div>
+                <button
+                  type="button"
+                  className="help-popover-close"
+                  onClick={() => setShowHelp(false)}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="help-popover-desc">
+                Cannot reach API at <code>{API_BASE_URL}</code>.
+              </p>
+              <div className="help-code-box">
+                <code>uvicorn app.main:app --reload</code>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-secondary btn-block mt-2"
+                onClick={() => {
+                  checkConnection();
+                }}
+              >
+                <RefreshCw size={12} className="icon-mr" />
+                Retry Ping
+              </button>
             </div>
-          </div>
-          <div className="offline-actions">
-            <button
-              type="button"
-              className="btn btn-sm btn-secondary"
-              onClick={checkConnection}
-            >
-              <RefreshCw size={14} className="icon-mr" />
-              Retry Connection
-            </button>
-            <button
-              type="button"
-              className="btn-link-dismiss"
-              onClick={() => setIsDismissed(true)}
-            >
-              Dismiss Notice
-            </button>
-          </div>
+          )}
         </div>
       )}
     </div>

@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Users,
   Search,
-  Filter,
   RefreshCw,
   Eye,
-  ShieldCheck,
+  CheckCircle,
   Cpu,
   AlertCircle,
-  Clock,
+  Inbox,
 } from 'lucide-react';
 import { listCases, analyzeCase } from '../api/cases';
 import { CaseStatus } from '../types/enums';
@@ -50,7 +48,6 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
     fetchCases();
   }, [fetchCases]);
 
-  // Handle running AI analysis on a pending case
   const handleRunAnalysis = async (caseId) => {
     setAnalyzingCaseId(caseId);
     try {
@@ -65,28 +62,26 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
     }
   };
 
-  // Callback when a case has been verified
   const handleCaseVerified = (updatedCase) => {
     setCases((prev) =>
       prev.map((c) => (c.id === updatedCase.id ? { ...c, ...updatedCase } : c))
     );
   };
 
-  // Filter & search
   const filteredCases = useMemo(() => {
     return cases.filter((c) => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
-      const matchCrop = (c.crop || '').toLowerCase().includes(q);
-      const matchDisease = (c.disease || '').toLowerCase().includes(q);
-      const matchLoc = (c.location_name || '').toLowerCase().includes(q);
-      const matchSymptoms = (c.symptoms || '').toLowerCase().includes(q);
-      const matchId = (c.id || '').toLowerCase().includes(q);
-      return matchCrop || matchDisease || matchLoc || matchSymptoms || matchId;
+      return (
+        (c.crop || '').toLowerCase().includes(q) ||
+        (c.disease || '').toLowerCase().includes(q) ||
+        (c.location_name || '').toLowerCase().includes(q) ||
+        (c.symptoms || '').toLowerCase().includes(q) ||
+        (c.id || '').toLowerCase().includes(q)
+      );
     });
   }, [cases, searchQuery]);
 
-  // Stats calculation
   const stats = useMemo(() => {
     const total = cases.length;
     const needsVerification = cases.filter(
@@ -98,67 +93,61 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
   }, [cases]);
 
   return (
-    <div className="page-container">
-      {/* Page Header */}
-      <div className="page-header-row">
-        <div>
-          <h1 className="page-title">
-            <Users className="title-icon text-amber" />
-            Agricultural Officer Verification Queue
-          </h1>
-          <p className="page-description">
-            Triage reported field infections, examine AI diagnostic predictions, and execute official
-            verification to establish epidemiologically confirmed outbreak clusters.
+    <div className="page-shell">
+      {/* Header */}
+      <div className="page-header">
+        <div className="page-header-text">
+          <h1 className="page-heading">Cases</h1>
+          <p className="page-lead">
+            Review surveillance reports, inspect AI computer vision diagnoses, and verify field cases.
           </p>
         </div>
 
         <button
           type="button"
-          className="btn btn-secondary btn-refresh"
+          className="btn btn-secondary btn-sm"
           onClick={fetchCases}
           disabled={isLoading}
-          title="Refresh cases from server"
         >
-          <RefreshCw size={15} className={`icon-mr ${isLoading ? 'spin' : ''}`} />
-          Refresh Queue
+          <RefreshCw size={14} className={`icon-mr ${isLoading ? 'spin' : ''}`} />
+          Refresh
         </button>
       </div>
 
-      {/* Stats Ribbon */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-label">Total Surveillance Cases</div>
-          <div className="stat-number">{stats.total}</div>
+      {/* Metrics Ribbon */}
+      <div className="stats-row">
+        <div className="metric-card">
+          <div className="metric-title">Total Cases</div>
+          <div className="metric-number">{stats.total}</div>
         </div>
-        <div className="stat-card stat-card-warning">
-          <div className="stat-label">Awaiting Verification</div>
-          <div className="stat-number text-amber">{stats.needsVerification}</div>
+        <div className="metric-card">
+          <div className="metric-title">Needs Verification</div>
+          <div className="metric-number text-amber">{stats.needsVerification}</div>
         </div>
-        <div className="stat-card stat-card-success">
-          <div className="stat-label">Verified Confirmed Cases</div>
-          <div className="stat-number text-emerald">{stats.verified}</div>
+        <div className="metric-card">
+          <div className="metric-title">Verified Outbreaks</div>
+          <div className="metric-number text-primary">{stats.verified}</div>
         </div>
-        <div className="stat-card stat-card-danger">
-          <div className="stat-label">High Outbreak Vulnerability</div>
-          <div className="stat-number text-danger">{stats.highRisk}</div>
+        <div className="metric-card">
+          <div className="metric-title">High Risk Cases</div>
+          <div className="metric-number text-danger">{stats.highRisk}</div>
         </div>
       </div>
 
-      {/* Filters & Search Toolbar */}
-      <div className="table-toolbar">
-        <div className="search-box">
-          <Search size={16} className="search-icon text-muted" />
+      {/* Search and Filters */}
+      <div className="filter-bar">
+        <div className="search-wrap">
+          <Search size={16} className="search-icon" />
           <input
             type="text"
-            className="search-input"
-            placeholder="Search by crop, pathogen, location or case ID..."
+            className="search-field"
+            placeholder="Search by crop, disease, or location..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        <div className="filter-pill-group">
-          <Filter size={15} className="filter-icon text-muted" />
+        <div className="filter-chips">
           {[
             { id: 'ALL', label: 'All Cases' },
             { id: CaseStatus.NEEDS_VERIFICATION, label: 'Needs Verification' },
@@ -171,7 +160,7 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
             <button
               key={tab.id}
               type="button"
-              className={`filter-btn ${statusFilter === tab.id ? 'active' : ''}`}
+              className={`chip ${statusFilter === tab.id ? 'chip-active' : ''}`}
               onClick={() => setStatusFilter(tab.id)}
             >
               {tab.label}
@@ -180,14 +169,14 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
         </div>
       </div>
 
-      {/* Error Banner */}
+      {/* Error state */}
       {errorMessage && (
-        <div className="form-error-banner mb-4" role="alert">
-          <AlertCircle size={18} />
+        <div className="alert-box alert-box-error mb-4" role="alert">
+          <AlertCircle size={18} className="flex-shrink-0" />
           <span>{errorMessage}</span>
           <button
             type="button"
-            className="btn btn-sm btn-secondary ml-auto"
+            className="btn btn-xs btn-secondary ml-auto"
             onClick={fetchCases}
           >
             Retry
@@ -196,33 +185,33 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
       )}
 
       {/* Cases Table */}
-      <div className="card table-card">
+      <div className="panel table-panel">
         {isLoading ? (
-          <div className="loading-state">
+          <div className="panel-loading">
             <span className="spinner" />
-            <p>Fetching cases from CropShield API...</p>
+            <p>Loading cases from CropShield...</p>
           </div>
         ) : filteredCases.length === 0 ? (
-          <div className="empty-state">
-            <Clock size={36} className="text-muted" />
-            <h3>No Cases Found</h3>
-            <p>
+          <div className="panel-empty">
+            <Inbox size={40} className="text-muted" />
+            <h3 className="empty-heading">No cases match your filters</h3>
+            <p className="empty-body">
               {cases.length === 0
-                ? 'No field cases have been registered yet. Head to Farmer Submission to submit the first case.'
-                : 'No cases match your active filter or search criteria.'}
+                ? 'No field cases have been registered yet. Head to Submit Case to file the first report.'
+                : 'Try adjusting your search query or status filter.'}
             </p>
           </div>
         ) : (
           <div className="table-responsive">
-            <table className="data-table">
+            <table className="clean-table">
               <thead>
                 <tr>
-                  <th>Crop & Stage</th>
+                  <th>Crop</th>
                   <th>Location</th>
-                  <th>AI Detection</th>
-                  <th>Risk Score</th>
+                  <th>AI Diagnosis</th>
+                  <th>Risk</th>
                   <th>Status</th>
-                  <th>Submitted</th>
+                  <th>Date</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
@@ -238,38 +227,36 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
                   return (
                     <tr
                       key={c.id}
-                      className={`table-row ${isHighlighted ? 'row-highlighted' : ''}`}
+                      className={isHighlighted ? 'row-highlighted' : ''}
                     >
                       <td>
-                        <div className="crop-cell">
+                        <div className="cell-crop">
                           <strong>{c.crop}</strong>
-                          <span className="crop-sub">{c.growth_stage}</span>
+                          <span className="cell-sub">{c.growth_stage}</span>
                         </div>
                       </td>
                       <td>
-                        <div className="location-cell">
-                          <span className="loc-name">{c.location_name}</span>
-                          <span className="loc-coords font-mono">
+                        <div className="cell-location">
+                          <span>{c.location_name}</span>
+                          <span className="cell-sub font-mono">
                             {typeof c.latitude === 'number' ? c.latitude.toFixed(2) : '-'}°,{' '}
                             {typeof c.longitude === 'number' ? c.longitude.toFixed(2) : '-'}°
                           </span>
                         </div>
                       </td>
                       <td>
-                        <div className="ai-cell">
-                          {c.disease ? (
-                            <>
-                              <span className="ai-disease-name">{c.disease}</span>
-                              {c.confidence && (
-                                <span className="ai-conf">
-                                  {Math.round(c.confidence * 100)}% conf.
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-muted italic">Unanalyzed</span>
-                          )}
-                        </div>
+                        {c.disease ? (
+                          <div className="cell-disease">
+                            <span className="disease-title">{c.disease}</span>
+                            {c.confidence !== null && (
+                              <span className="disease-conf">
+                                {Math.round(c.confidence * 100)}% conf.
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted text-sm">Pending analysis</span>
+                        )}
                       </td>
                       <td>
                         <RiskBadge level={c.risk_level} score={c.risk_score} size="sm" />
@@ -278,17 +265,17 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
                         <StatusBadge status={c.status} size="sm" />
                       </td>
                       <td>
-                        <span className="date-cell font-mono">
+                        <span className="cell-date">
                           {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}
                         </span>
                       </td>
                       <td className="text-right">
-                        <div className="actions-cell">
+                        <div className="cell-actions">
                           <button
                             type="button"
                             className="btn btn-xs btn-secondary"
                             onClick={() => setActiveDetailCase(c)}
-                            title="Inspect complete case details"
+                            title="View case details"
                           >
                             <Eye size={13} className="icon-mr" />
                             Details
@@ -300,7 +287,6 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
                               className="btn btn-xs btn-primary"
                               disabled={analyzingCaseId === c.id}
                               onClick={() => handleRunAnalysis(c.id)}
-                              title="Run AI inference and risk assessment"
                             >
                               <Cpu size={13} className="icon-mr" />
                               {analyzingCaseId === c.id ? 'Analyzing...' : 'Run AI'}
@@ -310,12 +296,11 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
                           {canVerify && (
                             <button
                               type="button"
-                              className="btn btn-xs btn-verify-action"
+                              className="btn btn-xs btn-outline-primary"
                               onClick={() => setActiveVerifyCase(c)}
-                              title="Review case and issue verification"
                             >
-                              <ShieldCheck size={13} className="icon-mr" />
-                              Review & Verify
+                              <CheckCircle size={13} className="icon-mr" />
+                              Verify
                             </button>
                           )}
                         </div>

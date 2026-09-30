@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import {
-  Sprout,
-  UploadCloud,
-  Sparkles,
+  Upload,
   ArrowRight,
   CheckCircle2,
   AlertCircle,
@@ -10,6 +8,8 @@ import {
   Droplets,
   CloudRain,
   RotateCcw,
+  ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import { createCase, analyzeCase } from '../api/cases';
 import StatusBadge from '../components/StatusBadge';
@@ -17,14 +17,14 @@ import RiskBadge from '../components/RiskBadge';
 
 const PRESET_CASES = [
   {
-    name: 'Tomato Early Blight (Kolar Zone)',
+    name: 'Tomato Early Blight',
     crop: 'Tomato',
     growth_stage: 'Fruiting',
-    location_name: 'Kolar Agro Cluster 4, Karnataka',
+    location_name: 'Kolar Agro Sector 4, Karnataka',
     latitude: 13.1368,
     longitude: 78.1348,
     symptoms:
-      'Dark concentric brown lesions on lower mature leaves with chlorotic yellow halo. Stem lesions developing rapidly after seasonal rain.',
+      'Dark concentric brown lesions on mature lower leaves surrounded by yellow chlorotic margins. Spreading rapidly after rain.',
     image_url:
       'https://images.unsplash.com/photo-1592417817098-8f3d6910985c?auto=format&fit=crop&w=600&q=80',
     temp: 26.5,
@@ -32,14 +32,14 @@ const PRESET_CASES = [
     rainfall: 12.0,
   },
   {
-    name: 'Potato Late Blight (Hassan)',
+    name: 'Potato Late Blight',
     crop: 'Potato',
-    growth_stage: 'Tuber Initiation',
-    location_name: 'Hassan Highland Farm 12, Karnataka',
+    growth_stage: 'Tuber Growth',
+    location_name: 'Hassan Farm 12, Karnataka',
     latitude: 13.0033,
     longitude: 76.1004,
     symptoms:
-      'Water-soaked dark lesions on leaf tips with white fuzzy fungal growth on the underside during humid morning hours.',
+      'Water-soaked dark lesions on leaf tips with pale borders and wilting during damp morning hours.',
     image_url:
       'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80',
     temp: 21.0,
@@ -47,14 +47,14 @@ const PRESET_CASES = [
     rainfall: 24.0,
   },
   {
-    name: 'Corn Southern Rust (Dharwad)',
+    name: 'Corn Southern Rust',
     crop: 'Corn (Maize)',
     growth_stage: 'Silking',
-    location_name: 'Dharwad Agricultural Basin, Block C',
+    location_name: 'Dharwad Basin Block C',
     latitude: 15.4589,
     longitude: 75.0078,
     symptoms:
-      'Dense golden-cinnamon pustules scattered across upper leaf surfaces causing premature drying and lodging risk.',
+      'Dense golden-cinnamon pustules scattered across upper leaf surfaces causing premature drying.',
     image_url:
       'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=600&q=80',
     temp: 29.0,
@@ -67,20 +67,20 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
   const [formData, setFormData] = useState({
     crop: 'Tomato',
     growth_stage: 'Flowering',
-    location_name: 'Kolar Agro Surveillance Sector 4',
+    location_name: 'Kolar Agro Sector 4',
     latitude: 13.1368,
     longitude: 78.1348,
     symptoms: 'Concentric dark target-spot lesions on mature lower leaves surrounded by yellow chlorotic margins.',
     image_url: 'https://images.unsplash.com/photo-1592417817098-8f3d6910985c?auto=format&fit=crop&w=600&q=80',
   });
 
-  // Environmental inputs for the POST /api/cases/{case_id}/analyze step
   const [weatherData, setWeatherData] = useState({
     temperature: 26.5,
     humidity: 78.0,
     rainfall: 12.0,
   });
 
+  const [showEnvironmental, setShowEnvironmental] = useState(false);
   const [submittingStep, setSubmittingStep] = useState('idle'); // 'idle' | 'saving_case' | 'analyzing' | 'done' | 'error'
   const [analyzedCase, setAnalyzedCase] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -147,31 +147,26 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
   };
 
   return (
-    <div className="page-container">
-      {/* Page Title & Intro */}
-      <div className="page-header-row">
-        <div>
-          <h1 className="page-title">
-            <Sprout className="title-icon text-emerald" />
-            Farmer Case Submission
-          </h1>
-          <p className="page-description">
-            Report anomalous crop disease symptoms from the field. CropShield triggers real-time
-            computer vision pathogen detection and epidemiological risk scoring.
+    <div className="page-shell">
+      {/* Header */}
+      <div className="page-header">
+        <div className="page-header-text">
+          <h1 className="page-heading">Submit Case</h1>
+          <p className="page-lead">
+            Record crop disease symptoms and field photos for AI diagnostics and risk assessment.
           </p>
         </div>
 
-        {/* Demo Quick Presets */}
-        <div className="presets-box">
-          <span className="presets-label">1-Click Hackathon Scenarios:</span>
-          <div className="presets-btns">
+        {/* Quick Sample Presets */}
+        <div className="quick-presets">
+          <span className="presets-caption">Load sample:</span>
+          <div className="presets-pill-group">
             {PRESET_CASES.map((preset) => (
               <button
                 key={preset.name}
                 type="button"
-                className="btn-preset"
+                className="preset-chip"
                 onClick={() => applyPreset(preset)}
-                title="Populate form with this realistic field report"
               >
                 {preset.name}
               </button>
@@ -180,21 +175,19 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
         </div>
       </div>
 
-      <div className="two-col-layout">
-        {/* Left Column: Submission Form */}
-        <div className="card form-card">
-          <form onSubmit={handleSubmit}>
-            <div className="form-section-title">Field Case Particulars</div>
-
-            <div className="form-row-2">
-              <div className="form-group">
-                <label htmlFor="crop" className="form-label">
-                  Crop Specie <span className="text-danger">*</span>
+      <div className="page-layout-two-col">
+        {/* Left Column: Form */}
+        <div className="panel form-panel">
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="form-grid-2">
+              <div className="field-group">
+                <label htmlFor="crop" className="field-label">
+                  Crop Species <span className="req">*</span>
                 </label>
                 <input
                   id="crop"
                   type="text"
-                  className="form-input"
+                  className="field-input"
                   required
                   placeholder="e.g. Tomato, Potato, Corn"
                   value={formData.crop}
@@ -202,14 +195,14 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="growth_stage" className="form-label">
-                  Growth Stage <span className="text-danger">*</span>
+              <div className="field-group">
+                <label htmlFor="growth_stage" className="field-label">
+                  Growth Stage <span className="req">*</span>
                 </label>
                 <input
                   id="growth_stage"
                   type="text"
-                  className="form-input"
+                  className="field-input"
                   required
                   placeholder="e.g. Flowering, Fruiting, Vegetative"
                   value={formData.growth_stage}
@@ -220,16 +213,16 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="location_name" className="form-label">
-                Field Location Name <span className="text-danger">*</span>
+            <div className="field-group">
+              <label htmlFor="location_name" className="field-label">
+                Field Location Name <span className="req">*</span>
               </label>
               <input
                 id="location_name"
                 type="text"
-                className="form-input"
+                className="field-input"
                 required
-                placeholder="e.g. Kolar Farm Zone 4, Plot B"
+                placeholder="e.g. North Plot 4, Kolar Agricultural Zone"
                 value={formData.location_name}
                 onChange={(e) =>
                   setFormData({ ...formData, location_name: e.target.value })
@@ -237,10 +230,10 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
               />
             </div>
 
-            <div className="form-row-2">
-              <div className="form-group">
-                <label htmlFor="latitude" className="form-label">
-                  Latitude (-90 to 90) <span className="text-danger">*</span>
+            <div className="form-grid-2">
+              <div className="field-group">
+                <label htmlFor="latitude" className="field-label">
+                  Latitude <span className="req">*</span>
                 </label>
                 <input
                   id="latitude"
@@ -248,7 +241,7 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                   step="0.0001"
                   min="-90"
                   max="90"
-                  className="form-input font-mono"
+                  className="field-input font-mono"
                   required
                   value={formData.latitude}
                   onChange={(e) =>
@@ -257,9 +250,9 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="longitude" className="form-label">
-                  Longitude (-180 to 180) <span className="text-danger">*</span>
+              <div className="field-group">
+                <label htmlFor="longitude" className="field-label">
+                  Longitude <span className="req">*</span>
                 </label>
                 <input
                   id="longitude"
@@ -267,7 +260,7 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                   step="0.0001"
                   min="-180"
                   max="180"
-                  className="form-input font-mono"
+                  className="field-input font-mono"
                   required
                   value={formData.longitude}
                   onChange={(e) =>
@@ -277,17 +270,17 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="symptoms" className="form-label">
-                Observed Symptoms <span className="text-danger">*</span>
+            <div className="field-group">
+              <label htmlFor="symptoms" className="field-label">
+                Observed Symptoms <span className="req">*</span>
               </label>
               <textarea
                 id="symptoms"
-                className="form-textarea"
+                className="field-textarea"
                 rows={3}
                 required
                 maxLength={3000}
-                placeholder="Describe leaf spots, wilting pattern, color discoloration, spread rate..."
+                placeholder="Describe visible spots, leaf discoloration, wilting, or spread rate..."
                 value={formData.symptoms}
                 onChange={(e) =>
                   setFormData({ ...formData, symptoms: e.target.value })
@@ -295,167 +288,192 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="image_url" className="form-label">
-                Crop Leaf Photo (Image URL)
+            {/* Prominent Image Input Section */}
+            <div className="field-group image-upload-section">
+              <label htmlFor="image_url" className="field-label">
+                Leaf / Plant Photo
               </label>
-              <div className="input-with-icon">
-                <UploadCloud size={16} className="input-icon text-muted" />
-                <input
-                  id="image_url"
-                  type="url"
-                  className="form-input pl-icon"
-                  placeholder="https://images.unsplash.com/..."
-                  value={formData.image_url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, image_url: e.target.value })
-                  }
+              <div className="image-input-card">
+                <div className="image-input-bar">
+                  <Upload size={18} className="text-muted" />
+                  <input
+                    id="image_url"
+                    type="url"
+                    className="field-input-clean"
+                    placeholder="Enter image URL (e.g. https://...)"
+                    value={formData.image_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, image_url: e.target.value })
+                    }
+                  />
+                </div>
+
+                {formData.image_url && (
+                  <div className="image-preview-box">
+                    <img
+                      src={formData.image_url}
+                      alt="Crop leaf preview"
+                      className="image-preview-thumb"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                    <div className="image-preview-meta">
+                      <span className="text-xs text-muted">Field photo attached</span>
+                      <button
+                        type="button"
+                        className="btn-link-xs"
+                        onClick={() => setFormData({ ...formData, image_url: '' })}
+                      >
+                        Clear photo
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Collapsible Environmental Parameters */}
+            <div className="collapsible-section">
+              <button
+                type="button"
+                className="collapsible-toggle"
+                onClick={() => setShowEnvironmental(!showEnvironmental)}
+                aria-expanded={showEnvironmental}
+              >
+                <div className="flex-center gap-2">
+                  <span className="toggle-title">Environmental Context (Optional)</span>
+                  <span className="toggle-badge">Weather & Micro-climate</span>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`toggle-chevron ${showEnvironmental ? 'rotate-180' : ''}`}
                 />
-              </div>
+              </button>
+
+              {showEnvironmental && (
+                <div className="collapsible-body animate-fade-in">
+                  <p className="field-hint mb-3">
+                    These parameters are fed into the deterministic risk algorithm along with nearby disease pressure.
+                  </p>
+                  <div className="form-grid-3">
+                    <div className="field-group mb-0">
+                      <label htmlFor="temp" className="field-label-sm">
+                        <Thermometer size={13} /> Temp (°C)
+                      </label>
+                      <input
+                        id="temp"
+                        type="number"
+                        step="0.5"
+                        min="-50"
+                        max="60"
+                        className="field-input font-mono"
+                        value={weatherData.temperature}
+                        onChange={(e) =>
+                          setWeatherData({
+                            ...weatherData,
+                            temperature: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="field-group mb-0">
+                      <label htmlFor="humidity" className="field-label-sm">
+                        <Droplets size={13} /> Humidity (%)
+                      </label>
+                      <input
+                        id="humidity"
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="100"
+                        className="field-input font-mono"
+                        value={weatherData.humidity}
+                        onChange={(e) =>
+                          setWeatherData({
+                            ...weatherData,
+                            humidity: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="field-group mb-0">
+                      <label htmlFor="rainfall" className="field-label-sm">
+                        <CloudRain size={13} /> Rainfall (mm)
+                      </label>
+                      <input
+                        id="rainfall"
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max="1000"
+                        className="field-input font-mono"
+                        value={weatherData.rainfall}
+                        onChange={(e) =>
+                          setWeatherData({
+                            ...weatherData,
+                            rainfall: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Environmental Conditions for Analysis */}
-            <div className="weather-params-box">
-              <div className="weather-title">
-                <Sparkles size={14} className="text-emerald" />
-                <span>Environmental & Micro-Climate Context (For Risk Model)</span>
-              </div>
-              <div className="form-row-3">
-                <div className="form-group mb-0">
-                  <label htmlFor="temp" className="label-xs">
-                    <Thermometer size={12} /> Temp (°C)
-                  </label>
-                  <input
-                    id="temp"
-                    type="number"
-                    step="0.5"
-                    min="-50"
-                    max="60"
-                    className="form-input font-mono"
-                    value={weatherData.temperature}
-                    onChange={(e) =>
-                      setWeatherData({
-                        ...weatherData,
-                        temperature: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="form-group mb-0">
-                  <label htmlFor="humidity" className="label-xs">
-                    <Droplets size={12} /> Humidity (%)
-                  </label>
-                  <input
-                    id="humidity"
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="100"
-                    className="form-input font-mono"
-                    value={weatherData.humidity}
-                    onChange={(e) =>
-                      setWeatherData({
-                        ...weatherData,
-                        humidity: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="form-group mb-0">
-                  <label htmlFor="rainfall" className="label-xs">
-                    <CloudRain size={12} /> Rain (mm)
-                  </label>
-                  <input
-                    id="rainfall"
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="1000"
-                    className="form-input font-mono"
-                    value={weatherData.rainfall}
-                    onChange={(e) =>
-                      setWeatherData({
-                        ...weatherData,
-                        rainfall: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
+            {/* Error Message */}
             {errorMessage && (
-              <div className="form-error-banner" role="alert">
-                <AlertCircle size={18} />
+              <div className="alert-box alert-box-error" role="alert">
+                <AlertCircle size={18} className="flex-shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
-            <div className="form-actions mt-4">
+            {/* Prominent Primary CTA */}
+            <div className="form-submit-row">
               <button
                 type="submit"
-                className="btn btn-primary btn-block btn-lg"
+                className="btn btn-primary btn-lg btn-block"
                 disabled={submittingStep === 'saving_case' || submittingStep === 'analyzing'}
               >
-                {submittingStep === 'saving_case' && (
-                  <>
-                    <span className="spinner-sm" />
-                    <span>Step 1/2: Submitting Case...</span>
-                  </>
-                )}
-                {submittingStep === 'analyzing' && (
-                  <>
-                    <span className="spinner-sm" />
-                    <span>Step 2/2: Running AI & Risk Analysis...</span>
-                  </>
-                )}
-                {(submittingStep === 'idle' || submittingStep === 'error' || submittingStep === 'done') && (
-                  <>
-                    <Sparkles size={18} className="icon-mr" />
-                    <span>Submit & Run AI Diagnostic</span>
-                  </>
-                )}
+                {submittingStep === 'saving_case' && 'Saving Case Report...'}
+                {submittingStep === 'analyzing' && 'Running AI Diagnostics & Risk Assessment...'}
+                {submittingStep !== 'saving_case' &&
+                  submittingStep !== 'analyzing' &&
+                  'Submit Case & Run Diagnosis'}
               </button>
             </div>
           </form>
         </div>
 
-        {/* Right Column: AI Analysis Result Display */}
-        <div className="card result-card">
-          <div className="card-header-clean">
-            <Sparkles size={18} className="text-emerald" />
-            <h2 className="card-heading">Automated Diagnostic Output</h2>
-          </div>
-
+        {/* Right Column: Clean Result Panel */}
+        <div className="panel result-panel">
           {analyzedCase ? (
-            <div className="analysis-result-view animate-fade-in">
-              <div className="result-success-pill">
-                <CheckCircle2 size={16} />
-                <span>Inference & Deterministic Risk Completed</span>
+            <div className="result-card-inner animate-fade-in">
+              <div className="result-badge-top">
+                <CheckCircle2 size={16} className="text-primary" />
+                <span>Analysis Complete</span>
               </div>
 
-              {/* Disease Diagnosis Card */}
-              <div className="diagnosis-highlight-box">
-                <div className="diagnosis-header">
-                  <span className="label-sm">Detected Crop Pathogen</span>
-                  <StatusBadge status={analyzedCase.status} />
-                </div>
-                <div className="disease-name-lg">{analyzedCase.disease || 'Undetected'}</div>
+              {/* Pathogen Card */}
+              <div className="result-hero-box">
+                <span className="result-section-label">Identified Pathogen</span>
+                <h2 className="result-disease-heading">
+                  {analyzedCase.disease || 'Unspecified Pathogen'}
+                </h2>
 
-                {/* Confidence Bar */}
                 {analyzedCase.confidence !== null && (
-                  <div className="confidence-meter-group mt-3">
-                    <div className="confidence-label-row">
-                      <span>Model Confidence Score</span>
-                      <strong className="text-emerald">
-                        {Math.round(analyzedCase.confidence * 100)}%
-                      </strong>
+                  <div className="result-confidence-wrap">
+                    <div className="confidence-text-row">
+                      <span>Model Confidence</span>
+                      <strong>{Math.round(analyzedCase.confidence * 100)}%</strong>
                     </div>
-                    <div className="meter-bar">
+                    <div className="progress-track">
                       <div
-                        className="meter-fill"
+                        className="progress-fill"
                         style={{ width: `${Math.round(analyzedCase.confidence * 100)}%` }}
                       />
                     </div>
@@ -463,57 +481,50 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                 )}
               </div>
 
-              {/* Risk Assessment Card */}
-              <div className="risk-highlight-box">
-                <div className="risk-header-row">
-                  <span className="label-sm">Epidemiological Risk Evaluation</span>
+              {/* Risk Evaluation */}
+              <div className="result-risk-box">
+                <div className="flex-between mb-2">
+                  <span className="result-section-label">Outbreak Risk</span>
                   <RiskBadge
                     level={analyzedCase.risk_level}
                     score={analyzedCase.risk_score}
-                    size="lg"
+                    size="md"
                   />
                 </div>
 
-                <div className="risk-score-display">
-                  <div className="score-num">{Math.round(analyzedCase.risk_score ?? 0)}</div>
-                  <div className="score-denominator">/ 100</div>
-                  <div className="score-label">Composite Outbreak Vulnerability Score</div>
-                </div>
-
-                <div className="meter-bar mt-2">
-                  <div
-                    className={`meter-fill meter-risk-${(analyzedCase.risk_level || 'low').toLowerCase()}`}
-                    style={{ width: `${Math.min(100, Math.round(analyzedCase.risk_score ?? 0))}%` }}
-                  />
+                <div className="risk-score-row">
+                  <div className="score-big">{Math.round(analyzedCase.risk_score ?? 0)}</div>
+                  <div className="score-denom">/ 100</div>
+                  <span className="text-muted text-sm ml-auto">Composite Risk Score</span>
                 </div>
               </div>
 
-              {/* Case Metadata Details */}
-              <div className="result-metadata-box">
-                <div className="meta-pair">
-                  <span className="meta-key">Assigned Case ID:</span>
-                  <code className="meta-value-code">{analyzedCase.id}</code>
+              {/* Case Metadata */}
+              <div className="result-details-list">
+                <div className="detail-item">
+                  <span className="detail-key">Case Reference</span>
+                  <code className="detail-code">{analyzedCase.id}</code>
                 </div>
-                <div className="meta-pair">
-                  <span className="meta-key">Field Location:</span>
-                  <span className="meta-val">{analyzedCase.location_name}</span>
-                </div>
-                <div className="meta-pair">
-                  <span className="meta-key">Next Workflow Step:</span>
-                  <span className="meta-val text-amber font-medium">
-                    Needs Agricultural Officer Verification
+                <div className="detail-item">
+                  <span className="detail-key">Crop & Stage</span>
+                  <span className="detail-val">
+                    {analyzedCase.crop} &bull; {analyzedCase.growth_stage}
                   </span>
                 </div>
+                <div className="detail-item">
+                  <span className="detail-key">Status</span>
+                  <StatusBadge status={analyzedCase.status} size="sm" />
+                </div>
               </div>
 
-              {/* Primary Call to Action: Proceed to Officer Verification */}
-              <div className="result-cta-group">
+              {/* Action Buttons */}
+              <div className="result-actions">
                 <button
                   type="button"
                   className="btn btn-primary btn-block"
                   onClick={() => onNavigateToOfficer && onNavigateToOfficer(analyzedCase)}
                 >
-                  <span>Review in Officer Queue</span>
+                  <span>Review in Cases</span>
                   <ArrowRight size={16} className="icon-ml" />
                 </button>
                 <button
@@ -530,33 +541,27 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
               </div>
             </div>
           ) : (
-            <div className="empty-analysis-placeholder">
-              <div className="placeholder-icon-circle">
-                <Sparkles size={32} className="text-emerald" />
+            <div className="result-empty-state">
+              <div className="empty-icon-circle">
+                <Sparkles size={26} className="text-primary" />
               </div>
-              <h3 className="placeholder-title">Awaiting Field Submission</h3>
-              <p className="placeholder-text">
-                Fill out the case details or select a preset scenario on the left, then click{' '}
-                <strong>"Submit & Run AI Diagnostic"</strong> to observe real-time computer vision
-                disease classification and environmental risk assessment.
+              <h3 className="empty-heading">Diagnostic Results</h3>
+              <p className="empty-body">
+                Fill out the case details on the left or click a sample scenario above, then submit to
+                receive computer vision pathogen detection and epidemiological risk scoring.
               </p>
-
-              <div className="pipeline-preview-list">
-                <div className="pipeline-preview-item">
-                  <span className="dot dot-1"></span>
-                  <span>1. Registers case in database as <code>PENDING_ANALYSIS</code></span>
+              <div className="empty-features-list">
+                <div className="feature-row">
+                  <CheckCircle2 size={16} className="text-primary flex-shrink-0" />
+                  <span>Real-time computer vision disease inference</span>
                 </div>
-                <div className="pipeline-preview-item">
-                  <span className="dot dot-2"></span>
-                  <span>2. Executes neural inference on leaf image</span>
+                <div className="feature-row">
+                  <CheckCircle2 size={16} className="text-primary flex-shrink-0" />
+                  <span>Deterministic micro-climate & density risk evaluation</span>
                 </div>
-                <div className="pipeline-preview-item">
-                  <span className="dot dot-3"></span>
-                  <span>3. Computes weather & disease pressure risk score (0-100)</span>
-                </div>
-                <div className="pipeline-preview-item">
-                  <span className="dot dot-4"></span>
-                  <span>4. Advances case lifecycle to <code>ANALYZED</code></span>
+                <div className="feature-row">
+                  <CheckCircle2 size={16} className="text-primary flex-shrink-0" />
+                  <span>Feeds verified clusters into regional outbreak warnings</span>
                 </div>
               </div>
             </div>
