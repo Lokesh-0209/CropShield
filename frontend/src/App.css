@@ -1238,7 +1238,7 @@
 }
 
 .range-input {
-  width: 130px;
+  width: 100%;
   accent-color: var(--primary);
   cursor: pointer;
 }
@@ -1976,4 +1976,511 @@
   .incident-meta-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ==========================================================================
+   Phase 4: Officer Portal Enhanced UI Components
+   ========================================================================== */
+
+/* 1. Mobile-friendly Table with Card Layout (< 768px) */
+@media (max-width: 768px) {
+  .table-cards-mobile thead {
+    display: none;
+  }
+  .table-cards-mobile,
+  .table-cards-mobile tbody,
+  .table-cards-mobile tr,
+  .table-cards-mobile td {
+    display: block;
+    width: 100%;
+  }
+  .table-cards-mobile tr {
+    margin-bottom: 12px;
+    background: #ffffff;
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    box-shadow: var(--shadow-xs);
+    cursor: pointer;
+  }
+  .table-cards-mobile td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border: none;
+    border-bottom: 1px dashed var(--border-subtle);
+  }
+  .table-cards-mobile td:last-child {
+    border-bottom: none;
+    padding-top: 10px;
+    justify-content: flex-end;
+  }
+  .table-cards-mobile td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-right: 12px;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* 2. Confidence Bar Component */
+.confidence-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 90px;
+}
+.confidence-bar-track {
+  height: 6px;
+  width: 100%;
+  background: var(--bg-muted);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.confidence-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+.conf-high {
+  background: #16a34a;
+}
+.conf-medium {
+  background: #d97706;
+}
+.conf-low {
+  background: #dc2626;
+}
+
+/* 3. Zoomable Image Component */
+.zoom-image-container {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  background: #090d16;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-card);
+}
+.zoom-controls-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.zoom-btn-group {
+  display: flex;
+  gap: 4px;
+}
+.zoom-btn {
+  background: transparent;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.zoom-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+}
+.zoom-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.zoom-level-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+}
+.zoom-viewport {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+.zoom-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.05s ease-out;
+  transform-origin: center center;
+}
+.zoom-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #cbd5e1;
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  pointer-events: none;
+}
+.zoom-image-empty {
+  height: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-card);
+}
+
+/* 4. Real Leaflet Map Component Styles */
+.cs-leaflet-container {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+  background: #f8fafc;
+}
+.cs-map-overlay-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cs-map-overlay-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.cs-map-overlay-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.cs-map-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cs-map-popup {
+  font-family: var(--font-sans);
+  color: var(--text-main);
+  padding: 4px;
+}
+.cs-map-popup-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  display: inline-block;
+  letter-spacing: 0.03em;
+}
+.cs-map-popup-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: #0f172a;
+  line-height: 1.25;
+}
+.cs-map-popup-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 6px;
+}
+.cs-popup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #475569;
+}
+.cs-cluster-node {
+  width: 32px;
+  height: 32px;
+  background: #ffffff;
+  border: 2.5px solid #dc2626;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.cs-cluster-node:hover, .cs-cluster-node.is-selected {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35);
+}
+.cs-cluster-symbol {
+  font-size: 11px;
+  margin-right: 1px;
+}
+.cs-cluster-count {
+  font-size: 11px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+.cs-case-pin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.cs-case-pin:hover {
+  transform: scale(1.3);
+}
+.cs-numbered-pin {
+  position: relative;
+  width: 32px;
+  height: 38px;
+  background: var(--severity-high);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.cs-numbered-pin.pin-medium {
+  background: var(--severity-medium);
+}
+.cs-numbered-pin:hover, .cs-numbered-pin.pin-selected {
+  transform: rotate(-45deg) scale(1.15);
+  box-shadow: 0 0 0 4px rgba(21, 128, 61, 0.35);
+}
+.cs-pin-number {
+  transform: rotate(45deg);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+/* 5. 30-Day Case Trend Chart Styles */
+.trend-chart-container {
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-xs);
+  position: relative;
+}
+.trend-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.trend-chart-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+.trend-chart-period {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  border-radius: var(--radius-full);
+}
+.trend-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.trend-chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+}
+.trend-chart-svg {
+  width: 100%;
+  height: 220px;
+  overflow: visible;
+}
+.trend-tooltip-card {
+  position: absolute;
+  top: 10px;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(6px);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-size: 11.5px;
+  pointer-events: none;
+  z-index: 20;
+  min-width: 130px;
+}
+.tooltip-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+/* 6. Risk Gauge Styles */
+.risk-gauge-card {
+  text-align: center;
+}
+.gauge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.gauge-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.gauge-svg-wrapper {
+  position: relative;
+  width: 240px;
+  margin: 0 auto;
+}
+.gauge-svg {
+  width: 100%;
+  height: auto;
+}
+.gauge-score-readout {
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.gauge-score-num {
+  font-size: 34px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  color: var(--text-main);
+  line-height: 1;
+}
+.gauge-score-sub {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.factors-breakdown {
+  text-align: left;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.factor-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.factor-bar-track {
+  height: 6px;
+  width: 100%;
+  background: var(--bg-muted);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+.factor-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+/* 7. Headline Inspect Next Banner on Officer Dashboard */
+.inspect-next-banner {
+  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+  color: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 14px rgba(21, 128, 61, 0.25);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.inspect-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.inspect-banner-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.inspect-banner-btn {
+  background: #ffffff;
+  color: #15803d;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-size: 13.5px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.inspect-banner-btn:hover {
+  background: #f0fdf4;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }

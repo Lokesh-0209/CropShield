@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import {
   Shield,
@@ -26,7 +26,35 @@ export default function OfficerLayout() {
   const { data: alertsData } = useAlerts();
   const { data: casesData } = useCases({ limit: 100 });
 
-  const alertsCount = alertsData?.alerts?.length || 0;
+  const [readAlertIds, setReadAlertIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cropshield_read_alerts');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Listen for read updates from AlertsPage
+  useEffect(() => {
+    const handleAlertsRead = () => {
+      try {
+        const saved = localStorage.getItem('cropshield_read_alerts');
+        setReadAlertIds(saved ? JSON.parse(saved) : []);
+      } catch {}
+    };
+
+    window.addEventListener('cropshield_alerts_read', handleAlertsRead);
+    return () => window.removeEventListener('cropshield_alerts_read', handleAlertsRead);
+  }, []);
+
+  const allAlerts = alertsData?.alerts || [];
+  const unreadAlerts = allAlerts.filter(
+    (a) => !readAlertIds.includes(a.warning_id || String(a.cluster_id))
+  );
+  const unreadCount = unreadAlerts.length;
+  const alertsCount = allAlerts.length;
+
   const pendingCasesCount = (casesData?.items || []).filter(
     (c) => c.status === CaseStatus.NEEDS_VERIFICATION || c.status === CaseStatus.ANALYZED
   ).length;
@@ -61,7 +89,7 @@ export default function OfficerLayout() {
       to: '/officer/alerts',
       label: 'Alerts',
       icon: Bell,
-      badge: alertsCount > 0 ? alertsCount : null,
+      badge: unreadCount > 0 ? unreadCount : null,
       badgeVariant: 'danger',
     },
     {
@@ -134,31 +162,30 @@ export default function OfficerLayout() {
               </span>
             </div>
 
-            {/* Notification Bell */}
+            {/* Notification Bell with Unread Dot */}
             <Link
               to="/officer/alerts"
               className="btn btn-secondary btn-xs"
               style={{ position: 'relative', padding: '6px 8px' }}
-              title="View outbreak advisories"
-              aria-label={`Alerts (${alertsCount})`}
+              title={unreadCount > 0 ? `${unreadCount} unread advisories` : 'View outbreak advisories'}
+              aria-label={`Alerts (${unreadCount} unread)`}
             >
               <Bell size={15} aria-hidden="true" />
-              {alertsCount > 0 && (
+              {unreadCount > 0 && (
                 <span
                   style={{
                     position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
+                    top: '-3px',
+                    right: '-3px',
+                    width: '8px',
+                    height: '8px',
                     background: 'var(--severity-high)',
-                    color: '#ffffff',
-                    fontSize: '9px',
-                    fontWeight: 800,
-                    borderRadius: '999px',
-                    padding: '1px 4px',
+                    borderRadius: '50%',
+                    border: '1.5px solid #ffffff',
+                    boxShadow: '0 0 0 2px rgba(220, 38, 38, 0.4)',
                   }}
-                >
-                  {alertsCount}
-                </span>
+                  title={`${unreadCount} unread advisories`}
+                />
               )}
             </Link>
 

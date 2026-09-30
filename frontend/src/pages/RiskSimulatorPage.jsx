@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Sliders,
   Thermometer,
@@ -6,13 +6,28 @@ import {
   CloudRain,
   Users,
   Play,
+  RotateCcw,
+  Sparkles,
+  Layers,
+  Sprout,
+  HelpCircle,
 } from 'lucide-react';
 import { useRiskSimulation } from '../services/queries';
 import { formatErrorMessage } from '../services/api';
-import RiskBadge from '../components/RiskBadge';
 import { PageHeader } from '../components/common/PageHeader';
 import { Button } from '../components/common/Button';
 import { ErrorState } from '../components/common/ErrorState';
+import RiskGauge from '../components/officer/RiskGauge';
+
+const CROPS = ['Tomato', 'Potato', 'Corn', 'Chili', 'Capsicum'];
+const GROWTH_STAGES = [
+  'Nursery / Seedling',
+  'Vegetative',
+  'Flowering',
+  'Fruit Set / Tuber Initiation',
+  'Fruiting / Maturation',
+  'Harvest',
+];
 
 export default function RiskSimulatorPage() {
   const [params, setParams] = useState({
@@ -24,7 +39,21 @@ export default function RiskSimulatorPage() {
     nearby_verified_cases: 4,
   });
 
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(() => {
+    // Initial deterministic baseline evaluation
+    return {
+      risk_score: 84.5,
+      risk_level: 'HIGH',
+      breakdown: {
+        thermal_suitability: 26.5,
+        canopy_humidity_contribution: 28.7,
+        precipitation_leaf_wetness: 12.0,
+        weather_total: 67.2,
+        crop_stage_vulnerability: 9.0,
+        cluster_proximity_density: 16.0,
+      },
+    };
+  });
 
   const simulateMutation = useRiskSimulation();
 
@@ -48,56 +77,109 @@ export default function RiskSimulatorPage() {
     }
   };
 
+  const handleReset = () => {
+    setParams({
+      crop: 'Tomato',
+      growth_stage: 'Flowering',
+      temperature: 28.0,
+      humidity: 82.0,
+      rainfall: 15.0,
+      nearby_verified_cases: 4,
+    });
+  };
+
   return (
     <div className="page-shell">
       {/* Header */}
       <PageHeader
-        heading="Risk Matrix Simulator"
-        lead="Evaluate pathogen vulnerability by simulating weather conditions, crop maturity, and local infection density."
+        heading="Outbreak Risk Simulator & Matrix Engine"
+        lead="Evaluate pathogen vulnerability by simulating weather conditions, crop maturity stages, and local infection density."
       />
 
-      <div className="page-layout-two-col">
-        {/* Left: Input Form */}
-        <div className="panel form-panel">
+      <div className="page-layout-two-col mb-6">
+        {/* ================= LEFT: Input Form with Full Width Sliders & Numeric Inputs ================= */}
+        <div className="panel" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div className="flex-center gap-2">
+              <Sliders size={16} className="text-primary" />
+              <h2 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
+                Field & Meteorological Parameters
+              </h2>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-xs"
+              onClick={handleReset}
+              title="Reset parameters to baseline"
+            >
+              <RotateCcw size={13} className="icon-mr" /> Reset
+            </button>
+          </div>
+
           <form onSubmit={handleSimulate}>
-            <div className="form-grid-2">
-              <div className="field-group">
-                <label htmlFor="sim-crop" className="field-label">
-                  Target Crop
+            {/* Target Crop & Growth Stage Dropdowns */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+              <div className="cs-field-group">
+                <label htmlFor="sim-crop" className="cs-field-label">
+                  Target Host Crop
                 </label>
-                <input
+                <select
                   id="sim-crop"
-                  type="text"
-                  className="field-input"
-                  required
+                  className="cs-select"
                   value={params.crop}
                   onChange={(e) => setParams({ ...params, crop: e.target.value })}
-                />
+                >
+                  {CROPS.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="field-group">
-                <label htmlFor="sim-growth" className="field-label">
-                  Growth Stage
+              <div className="cs-field-group">
+                <label htmlFor="sim-growth" className="cs-field-label">
+                  Crop Growth Stage
                 </label>
-                <input
+                <select
                   id="sim-growth"
-                  type="text"
-                  className="field-input"
-                  required
+                  className="cs-select"
                   value={params.growth_stage}
                   onChange={(e) => setParams({ ...params, growth_stage: e.target.value })}
-                />
+                >
+                  {GROWTH_STAGES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* Range Sliders */}
-            <div className="slider-box">
-              <div className="flex-between mb-2">
-                <span className="field-label-sm flex-center gap-1">
-                  <Thermometer size={14} className="text-muted" aria-hidden="true" /> Ambient Temperature
+            {/* Slider 1: Ambient Temperature */}
+            <div style={{ background: 'var(--bg-subtle)', padding: '14px 16px', borderRadius: 'var(--radius-md)', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Thermometer size={15} className="text-muted" aria-hidden="true" />
+                  Ambient Temperature
                 </span>
-                <span className="slider-reading">{params.temperature}°C</span>
+
+                {/* Uncropped Numeric Input Box */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    type="number"
+                    min="-10"
+                    max="50"
+                    step="0.5"
+                    className="cs-input"
+                    style={{ width: '70px', height: '30px', padding: '2px 8px', fontSize: '13px', textAlign: 'center', fontWeight: 700 }}
+                    value={params.temperature}
+                    onChange={(e) =>
+                      setParams({ ...params, temperature: parseFloat(e.target.value) || 0 })
+                    }
+                    aria-label="Ambient Temperature in Celsius exact value"
+                  />
+                  <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: 600 }}>°C</span>
+                </div>
               </div>
+
+              {/* FULL WIDTH SLIDER */}
               <input
                 id="sim-temp"
                 type="range"
@@ -105,21 +187,47 @@ export default function RiskSimulatorPage() {
                 max="50"
                 step="0.5"
                 className="range-input"
+                style={{ width: '100%' }}
                 value={params.temperature}
                 onChange={(e) =>
                   setParams({ ...params, temperature: parseFloat(e.target.value) })
                 }
-                aria-label="Ambient Temperature in Celsius"
               />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                <span>-10°C (Frost)</span>
+                <span>25°C (Optimum Pathogen)</span>
+                <span>50°C (Extreme Heat)</span>
+              </div>
             </div>
 
-            <div className="slider-box mt-3">
-              <div className="flex-between mb-2">
-                <span className="field-label-sm flex-center gap-1">
-                  <Droplets size={14} className="text-muted" aria-hidden="true" /> Relative Humidity
+            {/* Slider 2: Relative Humidity */}
+            <div style={{ background: 'var(--bg-subtle)', padding: '14px 16px', borderRadius: 'var(--radius-md)', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Droplets size={15} className="text-muted" aria-hidden="true" />
+                  Relative Humidity
                 </span>
-                <span className="slider-reading">{params.humidity}%</span>
+
+                {/* Uncropped Numeric Input Box */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    className="cs-input"
+                    style={{ width: '70px', height: '30px', padding: '2px 8px', fontSize: '13px', textAlign: 'center', fontWeight: 700 }}
+                    value={params.humidity}
+                    onChange={(e) =>
+                      setParams({ ...params, humidity: parseFloat(e.target.value) || 0 })
+                    }
+                    aria-label="Relative Humidity exact percentage"
+                  />
+                  <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: 600 }}>%</span>
+                </div>
               </div>
+
+              {/* FULL WIDTH SLIDER */}
               <input
                 id="sim-hum"
                 type="range"
@@ -127,21 +235,47 @@ export default function RiskSimulatorPage() {
                 max="100"
                 step="1"
                 className="range-input"
+                style={{ width: '100%' }}
                 value={params.humidity}
                 onChange={(e) =>
                   setParams({ ...params, humidity: parseFloat(e.target.value) })
                 }
-                aria-label="Relative Humidity Percentage"
               />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                <span>0% (Arid)</span>
+                <span>75% (Critical Spore Threshold)</span>
+                <span>100% (Saturated)</span>
+              </div>
             </div>
 
-            <div className="slider-box mt-3">
-              <div className="flex-between mb-2">
-                <span className="field-label-sm flex-center gap-1">
-                  <CloudRain size={14} className="text-muted" aria-hidden="true" /> Recent Precipitation
+            {/* Slider 3: Recent Precipitation */}
+            <div style={{ background: 'var(--bg-subtle)', padding: '14px 16px', borderRadius: 'var(--radius-md)', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CloudRain size={15} className="text-muted" aria-hidden="true" />
+                  Recent Precipitation (Rainfall)
                 </span>
-                <span className="slider-reading">{params.rainfall} mm</span>
+
+                {/* Uncropped Numeric Input Box */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    className="cs-input"
+                    style={{ width: '70px', height: '30px', padding: '2px 8px', fontSize: '13px', textAlign: 'center', fontWeight: 700 }}
+                    value={params.rainfall}
+                    onChange={(e) =>
+                      setParams({ ...params, rainfall: parseFloat(e.target.value) || 0 })
+                    }
+                    aria-label="Precipitation exact millimeters"
+                  />
+                  <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: 600 }}>mm</span>
+                </div>
               </div>
+
+              {/* FULL WIDTH SLIDER */}
               <input
                 id="sim-rain"
                 type="range"
@@ -149,21 +283,50 @@ export default function RiskSimulatorPage() {
                 max="100"
                 step="1"
                 className="range-input"
+                style={{ width: '100%' }}
                 value={params.rainfall}
                 onChange={(e) =>
                   setParams({ ...params, rainfall: parseFloat(e.target.value) })
                 }
-                aria-label="Recent Precipitation in millimeters"
               />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                <span>0 mm (Dry)</span>
+                <span>15 mm (Moderate Splash)</span>
+                <span>100 mm (Flood / Washout)</span>
+              </div>
             </div>
 
-            <div className="slider-box mt-3">
-              <div className="flex-between mb-2">
-                <span className="field-label-sm flex-center gap-1">
-                  <Users size={14} className="text-muted" aria-hidden="true" /> Nearby Verified Cases
+            {/* Slider 4: Nearby Verified Cases */}
+            <div style={{ background: 'var(--bg-subtle)', padding: '14px 16px', borderRadius: 'var(--radius-md)', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Users size={15} className="text-muted" aria-hidden="true" />
+                  Nearby Verified Cases
                 </span>
-                <span className="slider-reading">{params.nearby_verified_cases} cases</span>
+
+                {/* Fixed Uncropped Value Box */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="25"
+                    step="1"
+                    className="cs-input"
+                    style={{ width: '70px', height: '30px', padding: '2px 8px', fontSize: '13px', textAlign: 'center', fontWeight: 700 }}
+                    value={params.nearby_verified_cases}
+                    onChange={(e) =>
+                      setParams({
+                        ...params,
+                        nearby_verified_cases: parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                    aria-label="Nearby verified cases exact count"
+                  />
+                  <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: 600 }}>cases</span>
+                </div>
               </div>
+
+              {/* FULL WIDTH SLIDER */}
               <input
                 id="sim-cases"
                 type="range"
@@ -171,6 +334,7 @@ export default function RiskSimulatorPage() {
                 max="25"
                 step="1"
                 className="range-input"
+                style={{ width: '100%' }}
                 value={params.nearby_verified_cases}
                 onChange={(e) =>
                   setParams({
@@ -178,14 +342,18 @@ export default function RiskSimulatorPage() {
                     nearby_verified_cases: parseInt(e.target.value, 10),
                   })
                 }
-                aria-label="Nearby Verified Outbreak Cases"
               />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                <span>0 cases (Isolated plot)</span>
+                <span>5 cases (Active cluster)</span>
+                <span>25 cases (Epidemic core)</span>
+              </div>
             </div>
 
             {simulateMutation.isError && (
-              <div className="mt-3">
+              <div className="mb-3">
                 <ErrorState
-                  title="Simulation Error"
+                  title="Simulation Engine Error"
                   message={formatErrorMessage(simulateMutation.error)}
                   error={simulateMutation.error}
                   onRetry={handleSimulate}
@@ -200,59 +368,37 @@ export default function RiskSimulatorPage() {
               block
               loading={simulateMutation.isPending}
               icon={Play}
-              className="mt-4"
             >
-              {simulateMutation.isPending ? 'Calculating Risk Model...' : 'Run Risk Model'}
+              {simulateMutation.isPending ? 'Calculating Pathogen Risk Model...' : 'Calculate Pathogen Risk Model'}
             </Button>
           </form>
         </div>
 
-        {/* Right: Simulation Output */}
-        <div className="panel result-panel">
+        {/* ================= RIGHT: Risk Gauge & Contributing Factors Breakdown ================= */}
+        <div className="panel" style={{ padding: '24px' }}>
           {result ? (
-            <div className="result-card-inner animate-fade-in" aria-live="polite">
-              <div className="result-badge-top">
-                <span>Deterministic Model Output</span>
-              </div>
+            <div className="animate-fade-in">
+              <RiskGauge
+                score={result.risk_score}
+                level={result.risk_level}
+                breakdown={result.breakdown}
+                inputParams={params}
+              />
 
-              <div className="result-hero-box text-center py-6">
-                <span className="result-section-label">Calculated Outbreak Risk Score</span>
-                <div className="score-hero-val">{result.risk_score}</div>
-                <div className="text-xs text-muted mb-3">Scale 0 &ndash; 100</div>
-                <RiskBadge level={result.risk_level} score={result.risk_score} size="lg" />
-              </div>
-
-              {/* Progress bar */}
-              <div className="progress-track mt-3">
-                <div
-                  className={`progress-fill progress-${(result.risk_level || 'low').toLowerCase()}`}
-                  style={{ width: `${Math.min(100, result.risk_score)}%` }}
-                />
-              </div>
-
-              <div className="risk-bands-row mt-4">
-                <div className="band-label-item">
-                  <span className="dot dot-low" /> Low (0-44)
-                </div>
-                <div className="band-label-item">
-                  <span className="dot dot-medium" /> Medium (45-74)
-                </div>
-                <div className="band-label-item">
-                  <span className="dot dot-high" /> High (75-100)
-                </div>
-              </div>
-
+              {/* Model Context Card */}
               <div className="insight-card mt-4">
-                <h4 className="insight-title">Model Findings</h4>
+                <h4 className="insight-title">Epidemiological Assessment Summary</h4>
                 <ul className="insight-bullets">
                   <li>
-                    Humidity ({params.humidity}%) and rainfall ({params.rainfall} mm) promote fungal
-                    spore dissemination across {params.crop}.
+                    High canopy moisture (<strong>{params.humidity}%</strong>) combined with temperature (<strong>{params.temperature}°C</strong>) accelerates <em>Alternaria</em> and <em>Phytophthora</em> spore germ-tube elongation within 4–6 hours.
+                  </li>
+                  <li>
+                    The <strong>{params.growth_stage}</strong> growth stage of <strong>{params.crop}</strong> presents heightened foliar and vascular tissue vulnerability.
                   </li>
                   <li>
                     {params.nearby_verified_cases > 0
-                      ? `${params.nearby_verified_cases} active verified case(s) elevate nearby spore pressure.`
-                      : 'No nearby verified cases reduces local contagion potential.'}
+                      ? `${params.nearby_verified_cases} verified field infection(s) within the transmission buffer impose elevated regional inoculum pressure.`
+                      : 'Absence of adjacent confirmed infection foci minimizes immediate downwind spore propagation.'}
                   </li>
                 </ul>
               </div>
@@ -262,10 +408,10 @@ export default function RiskSimulatorPage() {
               <div className="empty-icon-circle">
                 <Sliders size={26} className="text-primary" aria-hidden="true" />
               </div>
-              <h3 className="empty-heading">Awaiting Simulation</h3>
+              <h3 className="empty-heading">Awaiting Simulation Input</h3>
               <p className="empty-body">
                 Adjust weather parameters and confirmed case density on the left, then click{' '}
-                <strong>"Run Risk Model"</strong> to test the deterministic risk assessment engine.
+                <strong>"Calculate Pathogen Risk Model"</strong> to test the deterministic risk assessment engine.
               </p>
             </div>
           )}

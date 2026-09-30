@@ -331,11 +331,38 @@ export async function verifyCase(caseId, verification) {
       throw new ApiError(`Case ${caseId} not found.`, 404);
     }
 
+    const currentCase = mockCases[index];
+    const status = verification.status || VerificationStatus.VERIFIED;
+    const note = verification.officer_note || 'Verified in field audit.';
+    const newDisease = verification.corrected_disease || verification.disease || currentCase.disease;
+
+    // Structured case history audit log
+    const historyEntry = {
+      id: `HIST-${Date.now()}`,
+      actor: 'Agricultural Officer (Dr. Suresh Patil)',
+      action:
+        verification.corrected_disease || verification.disease
+          ? `Reclassified Diagnosis to "${newDisease}" & Verified`
+          : status === VerificationStatus.VERIFIED
+          ? `Officially Confirmed AI Diagnosis & Verified`
+          : status === VerificationStatus.REJECTED
+          ? `Rejected Specimen Report`
+          : `Requested Additional Farmer Telemetry`,
+      status,
+      timestamp: new Date().toISOString(),
+      notes: note,
+      disease: newDisease,
+    };
+
+    const existingHistory = Array.isArray(currentCase.history) ? currentCase.history : [];
+
     const updated = {
-      ...mockCases[index],
-      status: verification.status || VerificationStatus.VERIFIED,
-      officer_note: verification.officer_note || 'Verified in field audit.',
+      ...currentCase,
+      status,
+      officer_note: note,
+      disease: newDisease,
       verified_at: new Date().toISOString(),
+      history: [...existingHistory, historyEntry],
     };
 
     mockCases[index] = updated;
@@ -355,6 +382,7 @@ export async function verifyCase(caseId, verification) {
   return apiClient.patch(`/api/cases/${caseId}/verify`, {
     status: verification.status,
     officer_note: verification.officer_note,
+    disease: verification.corrected_disease || verification.disease,
   });
 }
 
@@ -479,6 +507,10 @@ export async function runRiskSimulation(riskInput) {
         thermal_suitability: tempScore,
         canopy_humidity_contribution: Math.round(humScore * 10) / 10,
         precipitation_leaf_wetness: Math.round(rainScore * 10) / 10,
+        weather_total: Math.round((tempScore + humScore + rainScore) * 10) / 10,
+        crop_stage_vulnerability: cropFactor + stageBonus,
+        crop_susceptibility: cropFactor,
+        growth_stage_bonus: stageBonus,
         cluster_proximity_density: clusterScore,
       },
     };
