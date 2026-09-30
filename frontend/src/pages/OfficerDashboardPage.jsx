@@ -1,24 +1,31 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Search,
   RefreshCw,
   Eye,
   CheckCircle,
   Cpu,
-  AlertCircle,
   Inbox,
+  ClipboardList,
+  AlertTriangle,
+  ShieldCheck,
+  Flame,
 } from 'lucide-react';
-import { listCases, analyzeCase } from '../api/cases';
-import { CaseStatus } from '../types/enums';
+import { useCases } from '../services/queries';
+import { analyzeCase } from '../api/cases';
+import { CaseStatus, formatErrorMessage } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import RiskBadge from '../components/RiskBadge';
 import VerificationModal from '../components/VerificationModal';
 import CaseDetailModal from '../components/CaseDetailModal';
+import { StatCard } from '../components/common/StatCard';
+import { Skeleton } from '../components/common/Skeleton';
+import { EmptyState } from '../components/common/EmptyState';
+import { ErrorState } from '../components/common/ErrorState';
+import { PageHeader } from '../components/common/PageHeader';
+import { Button } from '../components/common/Button';
 
 export default function OfficerDashboardPage({ highlightCaseId = null }) {
-  const [cases, setCases] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -27,45 +34,40 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
   const [activeDetailCase, setActiveDetailCase] = useState(null);
   const [analyzingCaseId, setAnalyzingCaseId] = useState(null);
 
-  const fetchCases = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const res = await listCases({
-        status: statusFilter === 'ALL' ? undefined : statusFilter,
-        limit: 100,
-      });
-      const items = res?.items || (Array.isArray(res) ? res : []);
-      setCases(items);
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to load cases from CropShield API.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [statusFilter]);
+  // TanStack Query for cases
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useCases({
+    status: statusFilter === 'ALL' ? undefined : statusFilter,
+    limit: 100,
+  });
 
-  useEffect(() => {
-    fetchCases();
-  }, [fetchCases]);
+  const cases = useMemo(() => {
+    const items = data?.items;
+    if (Array.isArray(items)) return items;
+    if (Array.isArray(data)) return data;
+    return [];
+  }, [data]);
 
   const handleRunAnalysis = async (caseId) => {
     setAnalyzingCaseId(caseId);
     try {
-      const updated = await analyzeCase(caseId);
-      setCases((prev) =>
-        prev.map((c) => (c.id === caseId ? { ...c, ...updated } : c))
-      );
+      await analyzeCase(caseId);
+      refetch();
     } catch (err) {
-      alert(`AI Analysis failed: ${err.message}`);
+      alert(`AI Analysis failed: ${formatErrorMessage(err)}`);
     } finally {
       setAnalyzingCaseId(null);
     }
   };
 
-  const handleCaseVerified = (updatedCase) => {
-    setCases((prev) =>
-      prev.map((c) => (c.id === updatedCase.id ? { ...c, ...updatedCase } : c))
-    );
+  const handleCaseVerified = () => {
+    refetch();
   };
 
   const filteredCases = useMemo(() => {
@@ -83,6 +85,7 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
   }, [cases, searchQuery]);
 
   const stats = useMemo(() => {
+    if (isError || !data) return { total: null, needsVerification: null, verified: null, highRisk: null };
     const total = cases.length;
     const needsVerification = cases.filter(
       (c) => c.status === CaseStatus.NEEDS_VERIFICATION || c.status === CaseStatus.ANALYZED
@@ -90,60 +93,74 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
     const verified = cases.filter((c) => c.status === CaseStatus.VERIFIED).length;
     const highRisk = cases.filter((c) => (c.risk_level || '').toUpperCase() === 'HIGH').length;
     return { total, needsVerification, verified, highRisk };
-  }, [cases]);
+  }, [cases, isError, data]);
 
   return (
     <div className="page-shell">
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-header-text">
-          <h1 className="page-heading">Cases</h1>
-          <p className="page-lead">
-            Review surveillance reports, inspect AI computer vision diagnoses, and verify field cases.
-          </p>
-        </div>
+      {/* Page Header with Action */}
+      <PageHeader
+        heading="Cases"
+        lead="Review surveillance reports, inspect AI computer vision diagnoses, and verify field cases."
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => refetch()}
+            loading={isFetching}
+            icon={RefreshCw}
+          >
+            Refresh
+          </Button>
+        }
+      />
 
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={fetchCases}
-          disabled={isLoading}
-        >
-          <RefreshCw size={14} className={`icon-mr ${isLoading ? 'spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
-
-      {/* Metrics Ribbon */}
+      {/* Metrics Ribbon with error and loading handling (never misleading 0) */}
       <div className="stats-row">
-        <div className="metric-card">
-          <div className="metric-title">Total Cases</div>
-          <div className="metric-number">{stats.total}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-title">Needs Verification</div>
-          <div className="metric-number text-amber">{stats.needsVerification}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-title">Verified Outbreaks</div>
-          <div className="metric-number text-primary">{stats.verified}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-title">High Risk Cases</div>
-          <div className="metric-number text-danger">{stats.highRisk}</div>
-        </div>
+        <StatCard
+          title="Total Cases"
+          value={stats.total}
+          loading={isLoading}
+          error={isError}
+          icon={ClipboardList}
+          variant="neutral"
+        />
+        <StatCard
+          title="Needs Verification"
+          value={stats.needsVerification}
+          loading={isLoading}
+          error={isError}
+          icon={AlertTriangle}
+          variant="medium"
+        />
+        <StatCard
+          title="Verified Outbreaks"
+          value={stats.verified}
+          loading={isLoading}
+          error={isError}
+          icon={ShieldCheck}
+          variant="low"
+        />
+        <StatCard
+          title="High Risk Cases"
+          value={stats.highRisk}
+          loading={isLoading}
+          error={isError}
+          icon={Flame}
+          variant="high"
+        />
       </div>
 
       {/* Search and Filters */}
       <div className="filter-bar">
         <div className="search-wrap">
-          <Search size={16} className="search-icon" />
+          <Search size={16} className="search-icon" aria-hidden="true" />
           <input
             type="text"
             className="search-field"
             placeholder="Search by crop, disease, or location..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search cases by crop, disease, or location"
           />
         </div>
 
@@ -169,50 +186,48 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
         </div>
       </div>
 
-      {/* Error state */}
-      {errorMessage && (
-        <div className="alert-box alert-box-error mb-4" role="alert">
-          <AlertCircle size={18} className="flex-shrink-0" />
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            className="btn btn-xs btn-secondary ml-auto"
-            onClick={fetchCases}
-          >
-            Retry
-          </button>
+      {/* Main Cases Container: SEPARATE Error, Loading, Empty, and Success states */}
+      {isError ? (
+        <ErrorState
+          title="Unable to load field surveillance cases"
+          message={formatErrorMessage(error)}
+          error={error}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
+        />
+      ) : isLoading ? (
+        <div className="panel table-panel">
+          <div className="p-6" style={{ padding: '24px' }}>
+            <Skeleton height="36px" width="100%" className="mb-3" />
+            <Skeleton height="48px" width="100%" className="mb-2" />
+            <Skeleton height="48px" width="100%" className="mb-2" />
+            <Skeleton height="48px" width="100%" className="mb-2" />
+            <Skeleton height="48px" width="100%" />
+          </div>
         </div>
-      )}
-
-      {/* Cases Table */}
-      <div className="panel table-panel">
-        {isLoading ? (
-          <div className="panel-loading">
-            <span className="spinner" />
-            <p>Loading cases from CropShield...</p>
-          </div>
-        ) : filteredCases.length === 0 ? (
-          <div className="panel-empty">
-            <Inbox size={40} className="text-muted" />
-            <h3 className="empty-heading">No cases match your filters</h3>
-            <p className="empty-body">
-              {cases.length === 0
-                ? 'No field cases have been registered yet. Head to Submit Case to file the first report.'
-                : 'Try adjusting your search query or status filter.'}
-            </p>
-          </div>
-        ) : (
+      ) : filteredCases.length === 0 ? (
+        <EmptyState
+          icon={Inbox}
+          title="No cases match your filters"
+          description={
+            cases.length === 0
+              ? 'No field cases have been registered yet. Head to Submit Case to file the first report.'
+              : 'Try adjusting your search query or status filter.'
+          }
+        />
+      ) : (
+        <div className="panel table-panel">
           <div className="table-responsive">
             <table className="clean-table">
               <thead>
                 <tr>
-                  <th>Crop</th>
-                  <th>Location</th>
-                  <th>AI Diagnosis</th>
-                  <th>Risk</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th className="text-right">Actions</th>
+                  <th scope="col">Crop</th>
+                  <th scope="col">Location</th>
+                  <th scope="col">AI Diagnosis</th>
+                  <th scope="col">Risk</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Date</th>
+                  <th scope="col" className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -311,8 +326,8 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Verification Modal */}
       {activeVerifyCase && (

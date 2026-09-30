@@ -1,38 +1,36 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   RefreshCw,
   Calendar,
   Layers,
   ArrowRight,
   ShieldCheck,
-  AlertCircle,
 } from 'lucide-react';
-import { listAlerts } from '../api/alerts';
-import { RiskLevel } from '../types/enums';
+import { useAlerts } from '../services/queries';
+import { RiskLevel, formatErrorMessage } from '../services/api';
 import RiskBadge from '../components/RiskBadge';
+import { PageHeader } from '../components/common/PageHeader';
+import { Button } from '../components/common/Button';
+import { ErrorState } from '../components/common/ErrorState';
+import { EmptyState } from '../components/common/EmptyState';
+import { Skeleton } from '../components/common/Skeleton';
 
 export default function AlertsPage({ onNavigateToOutbreaks }) {
-  const [alerts, setAlerts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState(null);
   const [severityFilter, setSeverityFilter] = useState('ALL');
 
-  const fetchAlerts = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const res = await listAlerts({ eps_km: 2.0, min_samples: 3 });
-      setAlerts(res?.alerts || []);
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to load outbreak alerts from CropShield API.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  // TanStack Query for alerts
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useAlerts({ eps_km: 2.0, min_samples: 3 });
 
-  useEffect(() => {
-    fetchAlerts();
-  }, [fetchAlerts]);
+  const alerts = useMemo(() => {
+    return data?.alerts || [];
+  }, [data]);
 
   const filteredAlerts = useMemo(() => {
     if (severityFilter === 'ALL') return alerts;
@@ -44,24 +42,21 @@ export default function AlertsPage({ onNavigateToOutbreaks }) {
   return (
     <div className="page-shell">
       {/* Header */}
-      <div className="page-header">
-        <div className="page-header-text">
-          <h1 className="page-heading">Alerts & Advisories</h1>
-          <p className="page-lead">
-            Regional outbreak incident advisories generated automatically from confirmed disease clusters.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={fetchAlerts}
-          disabled={isLoading}
-        >
-          <RefreshCw size={14} className={`icon-mr ${isLoading ? 'spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
+      <PageHeader
+        heading="Alerts & Advisories"
+        lead="Regional outbreak incident advisories generated automatically from confirmed disease clusters."
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => refetch()}
+            loading={isFetching}
+            icon={RefreshCw}
+          >
+            Refresh
+          </Button>
+        }
+      />
 
       {/* Filter Chips */}
       <div className="filter-bar mb-4">
@@ -84,37 +79,31 @@ export default function AlertsPage({ onNavigateToOutbreaks }) {
         </div>
       </div>
 
-      {/* Error state */}
-      {errorMessage && (
-        <div className="alert-box alert-box-error mb-4" role="alert">
-          <AlertCircle size={18} className="flex-shrink-0" />
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            className="btn btn-xs btn-secondary ml-auto"
-            onClick={fetchAlerts}
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Alerts Feed */}
-      {isLoading ? (
-        <div className="panel panel-loading">
-          <span className="spinner" />
-          <p>Scanning active outbreak warnings...</p>
+      {/* Alerts Feed: Distinct states for Error, Loading, Empty, and Content */}
+      {isError ? (
+        <ErrorState
+          title="Unable to load outbreak alerts"
+          message={formatErrorMessage(error)}
+          error={error}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
+        />
+      ) : isLoading ? (
+        <div className="flex flex-col gap-4">
+          <Skeleton height="150px" width="100%" className="mb-3" />
+          <Skeleton height="150px" width="100%" className="mb-3" />
+          <Skeleton height="150px" width="100%" />
         </div>
       ) : filteredAlerts.length === 0 ? (
-        <div className="panel panel-empty">
-          <ShieldCheck size={40} className="text-primary mb-2" />
-          <h3 className="empty-heading">No Active Warnings</h3>
-          <p className="empty-body">
-            {alerts.length === 0
+        <EmptyState
+          icon={ShieldCheck}
+          title="No Active Warnings"
+          description={
+            alerts.length === 0
               ? 'No active outbreak alerts in your monitoring zones. Alerts are dispatched once verified cases form geographic clusters.'
-              : 'No alerts match your selected severity level.'}
-          </p>
-        </div>
+              : 'No alerts match your selected severity level.'
+          }
+        />
       ) : (
         <div className="incident-feed-stack">
           {filteredAlerts.map((alert) => {
@@ -189,7 +178,7 @@ export default function AlertsPage({ onNavigateToOutbreaks }) {
                 {/* Footer with timestamp & navigation */}
                 <div className="incident-footer">
                   <span className="incident-timestamp">
-                    <Calendar size={13} className="text-muted" />
+                    <Calendar size={13} className="text-muted" aria-hidden="true" />
                     <span>
                       {alert.created_at
                         ? new Date(alert.created_at).toLocaleString()
@@ -203,9 +192,9 @@ export default function AlertsPage({ onNavigateToOutbreaks }) {
                       className="btn-link-sm"
                       onClick={() => onNavigateToOutbreaks()}
                     >
-                      <Layers size={13} className="icon-mr" />
+                      <Layers size={13} className="icon-mr" aria-hidden="true" />
                       View on Outbreak Map
-                      <ArrowRight size={13} className="icon-ml" />
+                      <ArrowRight size={13} className="icon-ml" aria-hidden="true" />
                     </button>
                   )}
                 </div>

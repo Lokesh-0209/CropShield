@@ -3,7 +3,6 @@ import {
   Upload,
   ArrowRight,
   CheckCircle2,
-  AlertCircle,
   Thermometer,
   Droplets,
   CloudRain,
@@ -11,9 +10,13 @@ import {
   ChevronDown,
   Sparkles,
 } from 'lucide-react';
-import { createCase, analyzeCase } from '../api/cases';
+import { useSubmitCase } from '../services/queries';
+import { formatErrorMessage } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import RiskBadge from '../components/RiskBadge';
+import { PageHeader } from '../components/common/PageHeader';
+import { Button } from '../components/common/Button';
+import { ErrorState } from '../components/common/ErrorState';
 
 const PRESET_CASES = [
   {
@@ -85,6 +88,8 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
   const [analyzedCase, setAnalyzedCase] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
 
+  const submitMutation = useSubmitCase();
+
   const applyPreset = (preset) => {
     setFormData({
       crop: preset.crop,
@@ -110,7 +115,6 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
     setAnalyzedCase(null);
 
     try {
-      // 1. Submit initial case report: POST /api/cases
       setSubmittingStep('saving_case');
       const casePayload = {
         crop: formData.crop.trim(),
@@ -120,20 +124,13 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
         longitude: parseFloat(formData.longitude),
         symptoms: formData.symptoms.trim(),
         image_url: formData.image_url.trim() ? formData.image_url.trim() : null,
-      };
-
-      const createdResponse = await createCase(casePayload);
-      const caseId = createdResponse.id;
-
-      // 2. Trigger AI + Risk Analysis: POST /api/cases/{case_id}/analyze
-      setSubmittingStep('analyzing');
-      const analysisPayload = {
         temperature: parseFloat(weatherData.temperature) || 25.0,
         humidity: parseFloat(weatherData.humidity) || 70.0,
         rainfall: parseFloat(weatherData.rainfall) || 0.0,
       };
 
-      const fullAnalysisResult = await analyzeCase(caseId, analysisPayload);
+      setSubmittingStep('analyzing');
+      const fullAnalysisResult = await submitMutation.mutateAsync(casePayload);
       setAnalyzedCase(fullAnalysisResult);
       setSubmittingStep('done');
 
@@ -142,38 +139,34 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
       }
     } catch (err) {
       setSubmittingStep('error');
-      setErrorMessage(err.message || 'An error occurred during submission or AI inference.');
+      setErrorMessage(formatErrorMessage(err));
     }
   };
 
   return (
     <div className="page-shell">
       {/* Header */}
-      <div className="page-header">
-        <div className="page-header-text">
-          <h1 className="page-heading">Submit Case</h1>
-          <p className="page-lead">
-            Record crop disease symptoms and field photos for AI diagnostics and risk assessment.
-          </p>
-        </div>
-
-        {/* Quick Sample Presets */}
-        <div className="quick-presets">
-          <span className="presets-caption">Load sample:</span>
-          <div className="presets-pill-group">
-            {PRESET_CASES.map((preset) => (
-              <button
-                key={preset.name}
-                type="button"
-                className="preset-chip"
-                onClick={() => applyPreset(preset)}
-              >
-                {preset.name}
-              </button>
-            ))}
+      <PageHeader
+        heading="Submit Case"
+        lead="Record crop disease symptoms and field photos for AI diagnostics and risk assessment."
+        actions={
+          <div className="quick-presets">
+            <span className="presets-caption">Load sample:</span>
+            <div className="presets-pill-group">
+              {PRESET_CASES.map((preset) => (
+                <button
+                  key={preset.name}
+                  type="button"
+                  className="preset-chip"
+                  onClick={() => applyPreset(preset)}
+                >
+                  {preset.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="page-layout-two-col">
         {/* Left Column: Form */}
@@ -204,29 +197,25 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                   type="text"
                   className="field-input"
                   required
-                  placeholder="e.g. Flowering, Fruiting, Vegetative"
+                  placeholder="e.g. Flowering, Fruiting, Silking"
                   value={formData.growth_stage}
-                  onChange={(e) =>
-                    setFormData({ ...formData, growth_stage: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, growth_stage: e.target.value })}
                 />
               </div>
             </div>
 
             <div className="field-group">
               <label htmlFor="location_name" className="field-label">
-                Field Location Name <span className="req">*</span>
+                Location Name <span className="req">*</span>
               </label>
               <input
                 id="location_name"
                 type="text"
                 className="field-input"
                 required
-                placeholder="e.g. North Plot 4, Kolar Agricultural Zone"
+                placeholder="Village / Sector, District"
                 value={formData.location_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, location_name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, location_name: e.target.value })}
               />
             </div>
 
@@ -238,15 +227,11 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                 <input
                   id="latitude"
                   type="number"
-                  step="0.0001"
-                  min="-90"
-                  max="90"
+                  step="any"
                   className="field-input font-mono"
                   required
                   value={formData.latitude}
-                  onChange={(e) =>
-                    setFormData({ ...formData, latitude: parseFloat(e.target.value) || 0 })
-                  }
+                  onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
                 />
               </div>
 
@@ -257,45 +242,38 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                 <input
                   id="longitude"
                   type="number"
-                  step="0.0001"
-                  min="-180"
-                  max="180"
+                  step="any"
                   className="field-input font-mono"
                   required
                   value={formData.longitude}
-                  onChange={(e) =>
-                    setFormData({ ...formData, longitude: parseFloat(e.target.value) || 0 })
-                  }
+                  onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
                 />
               </div>
             </div>
 
             <div className="field-group">
               <label htmlFor="symptoms" className="field-label">
-                Observed Symptoms <span className="req">*</span>
+                Visible Symptoms & Observations <span className="req">*</span>
               </label>
               <textarea
                 id="symptoms"
                 className="field-textarea"
                 rows={3}
                 required
-                maxLength={3000}
-                placeholder="Describe visible spots, leaf discoloration, wilting, or spread rate..."
+                placeholder="Describe leaf lesions, pustules, wilting, color changes..."
                 value={formData.symptoms}
-                onChange={(e) =>
-                  setFormData({ ...formData, symptoms: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, symptoms: e.target.value })}
               />
             </div>
 
-            {/* Prominent Image Input Section */}
-            <div className="field-group image-upload-section">
+            {/* Photo Attachment URL */}
+            <div className="field-group">
               <label htmlFor="image_url" className="field-label">
-                Leaf / Plant Photo
+                Field Photo Attachment
               </label>
-              <div className="image-input-card">
-                <div className="image-input-bar">
-                  <Upload size={18} className="text-muted" />
+              <div className="image-upload-wrapper">
+                <div className="upload-input-row">
+                  <Upload size={16} className="upload-icon-left text-muted" aria-hidden="true" />
                   <input
                     id="image_url"
                     type="url"
@@ -312,7 +290,7 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                   <div className="image-preview-box">
                     <img
                       src={formData.image_url}
-                      alt="Crop leaf preview"
+                      alt="Crop leaf preview for disease diagnosis"
                       className="image-preview-thumb"
                       onError={(e) => {
                         e.target.style.display = 'none';
@@ -348,6 +326,7 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                 <ChevronDown
                   size={16}
                   className={`toggle-chevron ${showEnvironmental ? 'rotate-180' : ''}`}
+                  aria-hidden="true"
                 />
               </button>
 
@@ -359,7 +338,7 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                   <div className="form-grid-3">
                     <div className="field-group mb-0">
                       <label htmlFor="temp" className="field-label-sm">
-                        <Thermometer size={13} /> Temp (°C)
+                        <Thermometer size={13} aria-hidden="true" /> Temp (°C)
                       </label>
                       <input
                         id="temp"
@@ -380,7 +359,7 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
 
                     <div className="field-group mb-0">
                       <label htmlFor="humidity" className="field-label-sm">
-                        <Droplets size={13} /> Humidity (%)
+                        <Droplets size={13} aria-hidden="true" /> Humidity (%)
                       </label>
                       <input
                         id="humidity"
@@ -401,7 +380,7 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
 
                     <div className="field-group mb-0">
                       <label htmlFor="rainfall" className="field-label-sm">
-                        <CloudRain size={13} /> Rainfall (mm)
+                        <CloudRain size={13} aria-hidden="true" /> Rainfall (mm)
                       </label>
                       <input
                         id="rainfall"
@@ -426,25 +405,31 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
 
             {/* Error Message */}
             {errorMessage && (
-              <div className="alert-box alert-box-error" role="alert">
-                <AlertCircle size={18} className="flex-shrink-0" />
-                <span>{errorMessage}</span>
+              <div className="mt-3">
+                <ErrorState
+                  title="Submission Failed"
+                  message={errorMessage}
+                  error={submitMutation.error}
+                  onRetry={handleSubmit}
+                />
               </div>
             )}
 
             {/* Prominent Primary CTA */}
             <div className="form-submit-row">
-              <button
+              <Button
                 type="submit"
-                className="btn btn-primary btn-lg btn-block"
-                disabled={submittingStep === 'saving_case' || submittingStep === 'analyzing'}
+                variant="primary"
+                size="lg"
+                block
+                loading={submitMutation.isPending}
               >
                 {submittingStep === 'saving_case' && 'Saving Case Report...'}
                 {submittingStep === 'analyzing' && 'Running AI Diagnostics & Risk Assessment...'}
                 {submittingStep !== 'saving_case' &&
                   submittingStep !== 'analyzing' &&
                   'Submit Case & Run Diagnosis'}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -452,9 +437,9 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
         {/* Right Column: Clean Result Panel */}
         <div className="panel result-panel">
           {analyzedCase ? (
-            <div className="result-card-inner animate-fade-in">
+            <div className="result-card-inner animate-fade-in" aria-live="polite">
               <div className="result-badge-top">
-                <CheckCircle2 size={16} className="text-primary" />
+                <CheckCircle2 size={16} className="text-primary" aria-hidden="true" />
                 <span>Analysis Complete</span>
               </div>
 
@@ -519,31 +504,35 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
 
               {/* Action Buttons */}
               <div className="result-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-block"
+                <Button
+                  variant="primary"
+                  size="md"
+                  block
+                  icon={ArrowRight}
+                  iconPosition="right"
                   onClick={() => onNavigateToOfficer && onNavigateToOfficer(analyzedCase)}
                 >
-                  <span>Review in Cases</span>
-                  <ArrowRight size={16} className="icon-ml" />
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-block mt-2"
+                  Review in Cases
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  block
+                  icon={RotateCcw}
+                  className="mt-2"
                   onClick={() => {
                     setAnalyzedCase(null);
                     setSubmittingStep('idle');
                   }}
                 >
-                  <RotateCcw size={14} className="icon-mr" />
                   Submit Another Case
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
             <div className="result-empty-state">
               <div className="empty-icon-circle">
-                <Sparkles size={26} className="text-primary" />
+                <Sparkles size={26} className="text-primary" aria-hidden="true" />
               </div>
               <h3 className="empty-heading">Diagnostic Results</h3>
               <p className="empty-body">
@@ -552,15 +541,15 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
               </p>
               <div className="empty-features-list">
                 <div className="feature-row">
-                  <CheckCircle2 size={16} className="text-primary flex-shrink-0" />
+                  <CheckCircle2 size={16} className="text-primary flex-shrink-0" aria-hidden="true" />
                   <span>Real-time computer vision disease inference</span>
                 </div>
                 <div className="feature-row">
-                  <CheckCircle2 size={16} className="text-primary flex-shrink-0" />
+                  <CheckCircle2 size={16} className="text-primary flex-shrink-0" aria-hidden="true" />
                   <span>Deterministic micro-climate & density risk evaluation</span>
                 </div>
                 <div className="feature-row">
-                  <CheckCircle2 size={16} className="text-primary flex-shrink-0" />
+                  <CheckCircle2 size={16} className="text-primary flex-shrink-0" aria-hidden="true" />
                   <span>Feeds verified clusters into regional outbreak warnings</span>
                 </div>
               </div>

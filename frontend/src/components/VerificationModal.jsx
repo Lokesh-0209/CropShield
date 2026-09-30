@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle2, XCircle, HelpCircle, X, AlertCircle } from 'lucide-react';
-import { VerificationStatus } from '../types/enums';
-import { verifyCase } from '../api/cases';
+import { VerificationStatus, verifyCase, formatErrorMessage } from '../services/api';
 import RiskBadge from './RiskBadge';
 
 export default function VerificationModal({ caseItem, onClose, onVerified }) {
@@ -32,7 +31,7 @@ export default function VerificationModal({ caseItem, onClose, onVerified }) {
       }
       onClose();
     } catch (err) {
-      setErrorMessage(err.message || 'Failed to submit verification review.');
+      setErrorMessage(formatErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

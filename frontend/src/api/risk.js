@@ -1,15 +1,9 @@
-import { apiClient } from './client';
-
 /**
- * Risk Assessment API Service
+ * Risk Assessment API Adapter
+ * Delegates to centralized data service in src/services/api.js
  */
+import { runRiskSimulation } from '../services/api';
 
-/**
- * Compute deterministic crop disease risk
- * POST /api/risk/analyze
- * @param {object} riskInput - { temperature: float, humidity: float, rainfall: float, crop: string, growth_stage: string, nearby_verified_cases: int }
- * @returns {Promise<{ risk_score: number, risk_level: 'LOW' | 'MEDIUM' | 'HIGH' }>}
- */
 export async function calculateRisk(riskInput) {
-  return apiClient.post('/api/risk/analyze', riskInput);
+  return runRiskSimulation(riskInput);
 }

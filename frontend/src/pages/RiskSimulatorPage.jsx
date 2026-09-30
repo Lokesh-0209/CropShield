@@ -5,11 +5,14 @@ import {
   Droplets,
   CloudRain,
   Users,
-  AlertCircle,
   Play,
 } from 'lucide-react';
-import { calculateRisk } from '../api/risk';
+import { useRiskSimulation } from '../services/queries';
+import { formatErrorMessage } from '../services/api';
 import RiskBadge from '../components/RiskBadge';
+import { PageHeader } from '../components/common/PageHeader';
+import { Button } from '../components/common/Button';
+import { ErrorState } from '../components/common/ErrorState';
 
 export default function RiskSimulatorPage() {
   const [params, setParams] = useState({
@@ -22,13 +25,11 @@ export default function RiskSimulatorPage() {
   });
 
   const [result, setResult] = useState(null);
-  const [isCalculating, setIsCalculating] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
+
+  const simulateMutation = useRiskSimulation();
 
   const handleSimulate = async (e) => {
     if (e) e.preventDefault();
-    setIsCalculating(true);
-    setErrorMessage(null);
 
     try {
       const payload = {
@@ -40,26 +41,20 @@ export default function RiskSimulatorPage() {
         nearby_verified_cases: parseInt(params.nearby_verified_cases, 10),
       };
 
-      const res = await calculateRisk(payload);
+      const res = await simulateMutation.mutateAsync(payload);
       setResult(res);
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to compute risk score from CropShield API.');
-    } finally {
-      setIsCalculating(false);
+    } catch {
+      // Handled via simulateMutation.error
     }
   };
 
   return (
     <div className="page-shell">
       {/* Header */}
-      <div className="page-header">
-        <div className="page-header-text">
-          <h1 className="page-heading">Risk Matrix Simulator</h1>
-          <p className="page-lead">
-            Evaluate pathogen vulnerability by simulating weather conditions, crop maturity, and local infection density.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        heading="Risk Matrix Simulator"
+        lead="Evaluate pathogen vulnerability by simulating weather conditions, crop maturity, and local infection density."
+      />
 
       <div className="page-layout-two-col">
         {/* Left: Input Form */}
@@ -99,11 +94,12 @@ export default function RiskSimulatorPage() {
             <div className="slider-box">
               <div className="flex-between mb-2">
                 <span className="field-label-sm flex-center gap-1">
-                  <Thermometer size={14} className="text-muted" /> Ambient Temperature
+                  <Thermometer size={14} className="text-muted" aria-hidden="true" /> Ambient Temperature
                 </span>
                 <span className="slider-reading">{params.temperature}°C</span>
               </div>
               <input
+                id="sim-temp"
                 type="range"
                 min="-10"
                 max="50"
@@ -113,17 +109,19 @@ export default function RiskSimulatorPage() {
                 onChange={(e) =>
                   setParams({ ...params, temperature: parseFloat(e.target.value) })
                 }
+                aria-label="Ambient Temperature in Celsius"
               />
             </div>
 
             <div className="slider-box mt-3">
               <div className="flex-between mb-2">
                 <span className="field-label-sm flex-center gap-1">
-                  <Droplets size={14} className="text-muted" /> Relative Humidity
+                  <Droplets size={14} className="text-muted" aria-hidden="true" /> Relative Humidity
                 </span>
                 <span className="slider-reading">{params.humidity}%</span>
               </div>
               <input
+                id="sim-hum"
                 type="range"
                 min="0"
                 max="100"
@@ -133,17 +131,19 @@ export default function RiskSimulatorPage() {
                 onChange={(e) =>
                   setParams({ ...params, humidity: parseFloat(e.target.value) })
                 }
+                aria-label="Relative Humidity Percentage"
               />
             </div>
 
             <div className="slider-box mt-3">
               <div className="flex-between mb-2">
                 <span className="field-label-sm flex-center gap-1">
-                  <CloudRain size={14} className="text-muted" /> Recent Precipitation
+                  <CloudRain size={14} className="text-muted" aria-hidden="true" /> Recent Precipitation
                 </span>
                 <span className="slider-reading">{params.rainfall} mm</span>
               </div>
               <input
+                id="sim-rain"
                 type="range"
                 min="0"
                 max="100"
@@ -153,17 +153,19 @@ export default function RiskSimulatorPage() {
                 onChange={(e) =>
                   setParams({ ...params, rainfall: parseFloat(e.target.value) })
                 }
+                aria-label="Recent Precipitation in millimeters"
               />
             </div>
 
             <div className="slider-box mt-3">
               <div className="flex-between mb-2">
                 <span className="field-label-sm flex-center gap-1">
-                  <Users size={14} className="text-muted" /> Nearby Verified Cases
+                  <Users size={14} className="text-muted" aria-hidden="true" /> Nearby Verified Cases
                 </span>
                 <span className="slider-reading">{params.nearby_verified_cases} cases</span>
               </div>
               <input
+                id="sim-cases"
                 type="range"
                 min="0"
                 max="25"
@@ -176,37 +178,39 @@ export default function RiskSimulatorPage() {
                     nearby_verified_cases: parseInt(e.target.value, 10),
                   })
                 }
+                aria-label="Nearby Verified Outbreak Cases"
               />
             </div>
 
-            {errorMessage && (
-              <div className="alert-box alert-box-error mt-3" role="alert">
-                <AlertCircle size={16} />
-                <span>{errorMessage}</span>
+            {simulateMutation.isError && (
+              <div className="mt-3">
+                <ErrorState
+                  title="Simulation Error"
+                  message={formatErrorMessage(simulateMutation.error)}
+                  error={simulateMutation.error}
+                  onRetry={handleSimulate}
+                />
               </div>
             )}
 
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary btn-block btn-lg mt-4"
-              disabled={isCalculating}
+              variant="primary"
+              size="lg"
+              block
+              loading={simulateMutation.isPending}
+              icon={Play}
+              className="mt-4"
             >
-              {isCalculating ? (
-                'Calculating Risk Model...'
-              ) : (
-                <>
-                  <Play size={16} className="icon-mr" />
-                  <span>Run Risk Model</span>
-                </>
-              )}
-            </button>
+              {simulateMutation.isPending ? 'Calculating Risk Model...' : 'Run Risk Model'}
+            </Button>
           </form>
         </div>
 
         {/* Right: Simulation Output */}
         <div className="panel result-panel">
           {result ? (
-            <div className="result-card-inner animate-fade-in">
+            <div className="result-card-inner animate-fade-in" aria-live="polite">
               <div className="result-badge-top">
                 <span>Deterministic Model Output</span>
               </div>
@@ -228,13 +232,13 @@ export default function RiskSimulatorPage() {
 
               <div className="risk-bands-row mt-4">
                 <div className="band-label-item">
-                  <span className="dot dot-low" /> Low (0-39)
+                  <span className="dot dot-low" /> Low (0-44)
                 </div>
                 <div className="band-label-item">
-                  <span className="dot dot-medium" /> Medium (40-69)
+                  <span className="dot dot-medium" /> Medium (45-74)
                 </div>
                 <div className="band-label-item">
-                  <span className="dot dot-high" /> High (70-100)
+                  <span className="dot dot-high" /> High (75-100)
                 </div>
               </div>
 
@@ -256,12 +260,12 @@ export default function RiskSimulatorPage() {
           ) : (
             <div className="result-empty-state">
               <div className="empty-icon-circle">
-                <Sliders size={26} className="text-primary" />
+                <Sliders size={26} className="text-primary" aria-hidden="true" />
               </div>
               <h3 className="empty-heading">Awaiting Simulation</h3>
               <p className="empty-body">
                 Adjust weather parameters and confirmed case density on the left, then click{' '}
-                <strong>"Run Risk Model"</strong> to test the deterministic backend endpoint.
+                <strong>"Run Risk Model"</strong> to test the deterministic risk assessment engine.
               </p>
             </div>
           )}

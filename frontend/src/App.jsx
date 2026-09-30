@@ -5,11 +5,13 @@ import OfficerDashboardPage from './pages/OfficerDashboardPage';
 import OutbreakIntelligencePage from './pages/OutbreakIntelligencePage';
 import AlertsPage from './pages/AlertsPage';
 import RiskSimulatorPage from './pages/RiskSimulatorPage';
-import { listCases } from './api/cases';
-import { listAlerts } from './api/alerts';
-import { CaseStatus } from './types/enums';
+import { NotFoundPage } from './components/common/NotFoundPage';
+import { Toast } from './components/common/Toast';
+import { getCases, getAlerts, CaseStatus, IS_MOCK } from './services/api';
 import { API_BASE_URL } from './api/client';
 import './App.css';
+
+const VALID_TABS = ['farmer', 'officer', 'outbreaks', 'alerts', 'risk-sim'];
 
 function App() {
   const [activeTab, setActiveTab] = useState('farmer');
@@ -23,15 +25,15 @@ function App() {
     setToast({ message, type, id: Date.now() });
     setTimeout(() => {
       setToast((prev) => (prev?.id === toast?.id ? null : prev));
-    }, 4000);
+    }, 4500);
   };
 
   // Fetch summary counts for navigation badges
   const fetchBadgeCounts = useCallback(async () => {
     try {
       const [casesRes, alertsRes] = await Promise.allSettled([
-        listCases({ limit: 100 }),
-        listAlerts({ eps_km: 2.0, min_samples: 3 }),
+        getCases({ limit: 100 }),
+        getAlerts({ eps_km: 2.0, min_samples: 3 }),
       ]);
 
       if (casesRes.status === 'fulfilled') {
@@ -49,13 +51,13 @@ function App() {
         setAlertsCount(count);
       }
     } catch {
-      // Non-blocking for UI
+      // Non-blocking for UI navigation
     }
   }, []);
 
   useEffect(() => {
     fetchBadgeCounts();
-    const interval = setInterval(fetchBadgeCounts, 20000);
+    const interval = setInterval(fetchBadgeCounts, 25000);
     return () => clearInterval(interval);
   }, [fetchBadgeCounts]);
 
@@ -63,7 +65,7 @@ function App() {
     setHighlightCaseId(caseItem.id);
     fetchBadgeCounts();
     showToast(
-      `Case submitted: ${caseItem.disease || 'Analyzed'} (${caseItem.risk_level} Risk)`,
+      `Case submitted: ${caseItem.disease || 'Analyzed'} (${caseItem.risk_level || 'Low'} Risk)`,
       'success'
     );
   };
@@ -78,6 +80,8 @@ function App() {
   const handleNavigateToOutbreaks = () => {
     setActiveTab('outbreaks');
   };
+
+  const isKnownTab = VALID_TABS.includes(activeTab);
 
   return (
     <div className="cropshield-app">
@@ -113,32 +117,36 @@ function App() {
         )}
 
         {activeTab === 'risk-sim' && <RiskSimulatorPage />}
+
+        {!isKnownTab && (
+          <NotFoundPage onNavigateHome={(tab) => setActiveTab(tab || 'farmer')} />
+        )}
       </main>
 
-      {/* Toast Feedback */}
+      {/* Accessible Toast Notification Feedback */}
       {toast && (
-        <div className={`toast toast-${toast.type} animate-fade-in`} role="alert">
-          <div className="toast-text">{toast.message}</div>
-          <button
-            type="button"
-            className="toast-close"
-            onClick={() => setToast(null)}
-            aria-label="Dismiss alert"
-          >
-            &times;
-          </button>
+        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999 }}>
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
         </div>
       )}
 
-      {/* Clean Light Footer */}
+      {/* Clean Light Footer - Dev details only visible in DEV */}
       <footer className="app-footer">
         <div className="footer-container">
           <div className="footer-brand">
             <strong>CropShield</strong> &mdash; Agricultural Disease Surveillance & Outbreak Intelligence
           </div>
-          <div className="footer-meta">
-            <span>API: <code>{API_BASE_URL}</code> ({isBackendOnline ? 'Online' : 'Offline'})</span>
-          </div>
+          {import.meta.env.DEV && (
+            <div className="footer-meta">
+              <span>
+                API: <code>{API_BASE_URL}</code> ({IS_MOCK ? 'Mock Active' : isBackendOnline ? 'Online' : 'Offline'})
+              </span>
+            </div>
+          )}
         </div>
       </footer>
     </div>

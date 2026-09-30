@@ -9,12 +9,15 @@ export default function BackendStatusBanner({ onStatusChange }) {
   const [lastChecked, setLastChecked] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
 
+  const [isMockService, setIsMockService] = useState(false);
+
   const checkConnection = useCallback(async () => {
     setStatus('checking');
     try {
       const res = await getHealthStatus();
       if (res && (res.status === 'ok' || res.status === 'healthy')) {
         setStatus('online');
+        setIsMockService(Boolean(res.isMock));
         setServiceInfo(res.service || 'CropShield API');
         if (onStatusChange) onStatusChange(true);
       } else {
@@ -42,10 +45,14 @@ export default function BackendStatusBanner({ onStatusChange }) {
           type="button"
           className="health-status-btn status-online"
           onClick={checkConnection}
-          title={`Connected to ${API_BASE_URL} (${serviceInfo}). Last checked: ${lastChecked}. Click to refresh.`}
+          title={
+            isMockService
+              ? `Running with Seeded Mock Data (${serviceInfo}). Last checked: ${lastChecked}. Click to refresh.`
+              : `Connected to ${API_BASE_URL} (${serviceInfo}). Last checked: ${lastChecked}. Click to refresh.`
+          }
         >
           <span className="status-dot dot-online" />
-          <span className="status-text">API Online</span>
+          <span className="status-text">{isMockService ? 'Mock Mode' : 'API Online'}</span>
         </button>
       )}
 
