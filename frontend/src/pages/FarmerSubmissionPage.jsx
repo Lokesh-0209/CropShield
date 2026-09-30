@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Upload,
   ArrowRight,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useSubmitCase } from '../services/queries';
 import { formatErrorMessage } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import RiskBadge from '../components/RiskBadge';
 import { PageHeader } from '../components/common/PageHeader';
@@ -67,6 +69,8 @@ const PRESET_CASES = [
 ];
 
 export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOfficer }) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     crop: 'Tomato',
     growth_stage: 'Flowering',
@@ -510,9 +514,17 @@ export default function FarmerSubmissionPage({ onCaseCreated, onNavigateToOffice
                   block
                   icon={ArrowRight}
                   iconPosition="right"
-                  onClick={() => onNavigateToOfficer && onNavigateToOfficer(analyzedCase)}
+                  onClick={() => {
+                    if (onNavigateToOfficer) {
+                      onNavigateToOfficer(analyzedCase);
+                    } else if (user?.role === 'farmer') {
+                      navigate(`/farmer/reports/${analyzedCase.id}`);
+                    } else {
+                      navigate(`/officer/cases/${analyzedCase.id}`);
+                    }
+                  }}
                 >
-                  Review in Cases
+                  {user?.role === 'farmer' ? 'View in My Reports' : 'Review in Cases'}
                 </Button>
                 <Button
                   variant="secondary"

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Search,
   RefreshCw,
@@ -290,11 +291,19 @@ export default function OfficerDashboardPage({ highlightCaseId = null }) {
                             type="button"
                             className="btn btn-xs btn-secondary"
                             onClick={() => setActiveDetailCase(c)}
-                            title="View case details"
+                            title="View quick case modal"
                           >
                             <Eye size={13} className="icon-mr" />
                             Details
                           </button>
+
+                          <Link
+                            to={`/officer/cases/${c.id}`}
+                            className="btn btn-xs btn-outline-secondary"
+                            title="Open full case review page"
+                          >
+                            Review
+                          </Link>
 
                           {isPendingAnalysis && (
                             <button

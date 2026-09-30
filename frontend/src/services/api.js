@@ -70,25 +70,71 @@ async function simulateLatency(minMs = 300, maxMs = 700) {
 }
 
 /**
- * 1. Login user
+ * 1. Login user (Farmer or Verified Officer)
  * POST /api/auth/login or mock session
  */
-export async function login(credentials) {
+export async function login(credentials = {}) {
+  const role = credentials.role || 'farmer';
+
   if (IS_MOCK) {
     await simulateLatency(300, 600);
+
+    if (role === 'farmer') {
+      const otp = String(credentials.otp || '').trim();
+      if (otp !== '123456') {
+        throw new ApiError('Invalid OTP. Please enter 123456 for testing.', 401);
+      }
+
+      const phone = credentials.phone ? String(credentials.phone).trim() : '+91 98450 12345';
+      return {
+        token: 'mock-jwt-farmer-session-882200',
+        user: {
+          id: 'farmer-ka-01',
+          name: 'Ramesh Gowda',
+          role: 'farmer',
+          phone,
+          district: 'Kolar',
+        },
+      };
+    }
+
+    // Officer login
+    const officerId = credentials.officerId ? String(credentials.officerId).trim() : 'KA-AGRI-042';
+    const password = credentials.password ? String(credentials.password).trim() : '';
+    if (!password) {
+      throw new ApiError('Password is required for officer login.', 400);
+    }
+
     return {
-      token: 'cropshield-officer-session-token-998822',
+      token: 'mock-jwt-officer-session-998822',
       user: {
-        id: 'usr-officer-01',
+        id: officerId,
         name: 'Dr. Suresh Patil',
-        role: 'AGRICULTURAL_OFFICER',
+        role: 'officer',
+        district: 'Kolar & Chikkaballapur',
         jurisdiction: 'Kolar, Chikkaballapur & Bengaluru Rural',
-        email: credentials?.email || 'suresh.patil@agri.kar.gov.in',
+        email: 'suresh.patil@agri.kar.gov.in',
       },
     };
   }
 
   return apiClient.post('/api/auth/login', credentials);
+}
+
+/**
+ * Logout user session
+ */
+export async function logout() {
+  if (IS_MOCK) {
+    await simulateLatency(100, 300);
+    return { success: true };
+  }
+
+  try {
+    return await apiClient.post('/api/auth/logout', {});
+  } catch {
+    return { success: true };
+  }
 }
 
 /**

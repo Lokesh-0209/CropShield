@@ -1,156 +1,124 @@
-import { useState, useEffect, useCallback } from 'react';
-import Navbar from './components/Navbar';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import FarmerLayout from './layouts/FarmerLayout';
+import OfficerLayout from './layouts/OfficerLayout';
+
+// Pages
+import LoginPage from './pages/LoginPage';
+import FarmerHomePage from './pages/farmer/FarmerHomePage';
+import FarmerReportsPage from './pages/farmer/FarmerReportsPage';
+import FarmerReportDetailPage from './pages/farmer/FarmerReportDetailPage';
+import FarmerAlertsPage from './pages/farmer/FarmerAlertsPage';
 import FarmerSubmissionPage from './pages/FarmerSubmissionPage';
+
+import OfficerDashboardSummaryPage from './pages/officer/OfficerDashboardSummaryPage';
 import OfficerDashboardPage from './pages/OfficerDashboardPage';
+import OfficerCaseReviewPage from './pages/officer/OfficerCaseReviewPage';
 import OutbreakIntelligencePage from './pages/OutbreakIntelligencePage';
+import OfficerInspectNextPage from './pages/officer/OfficerInspectNextPage';
 import AlertsPage from './pages/AlertsPage';
 import RiskSimulatorPage from './pages/RiskSimulatorPage';
+
 import { NotFoundPage } from './components/common/NotFoundPage';
-import { Toast } from './components/common/Toast';
-import { getCases, getAlerts, CaseStatus, IS_MOCK } from './services/api';
-import { API_BASE_URL } from './api/client';
 import './App.css';
 
-const VALID_TABS = ['farmer', 'officer', 'outbreaks', 'alerts', 'risk-sim'];
+/**
+ * Root "/" redirect based on user authentication state and role
+ */
+function RootRedirect() {
+  const { user, isAuthenticated } = useAuth();
 
-function App() {
-  const [activeTab, setActiveTab] = useState('farmer');
-  const [highlightCaseId, setHighlightCaseId] = useState(null);
-  const [needsVerificationCount, setNeedsVerificationCount] = useState(0);
-  const [alertsCount, setAlertsCount] = useState(0);
-  const [isBackendOnline, setIsBackendOnline] = useState(false);
-  const [toast, setToast] = useState(null);
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type, id: Date.now() });
-    setTimeout(() => {
-      setToast((prev) => (prev?.id === toast?.id ? null : prev));
-    }, 4500);
-  };
+  if (user?.role === 'farmer') {
+    return <Navigate to="/farmer/home" replace />;
+  }
 
-  // Fetch summary counts for navigation badges
-  const fetchBadgeCounts = useCallback(async () => {
-    try {
-      const [casesRes, alertsRes] = await Promise.allSettled([
-        getCases({ limit: 100 }),
-        getAlerts({ eps_km: 2.0, min_samples: 3 }),
-      ]);
+  return <Navigate to="/officer/dashboard" replace />;
+}
 
-      if (casesRes.status === 'fulfilled') {
-        const items = casesRes.value?.items || [];
-        const pendingCount = items.filter(
-          (c) =>
-            c.status === CaseStatus.NEEDS_VERIFICATION ||
-            c.status === CaseStatus.ANALYZED
-        ).length;
-        setNeedsVerificationCount(pendingCount);
-      }
+/**
+ * 404 handler that navigates back to user's role-appropriate home
+ */
+function RoleAwareNotFound() {
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
-      if (alertsRes.status === 'fulfilled') {
-        const count = alertsRes.value?.alerts?.length || 0;
-        setAlertsCount(count);
-      }
-    } catch {
-      // Non-blocking for UI navigation
+  const handleReturnHome = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    } else if (user?.role === 'farmer') {
+      navigate('/farmer/home');
+    } else {
+      navigate('/officer/dashboard');
     }
-  }, []);
-
-  useEffect(() => {
-    fetchBadgeCounts();
-    const interval = setInterval(fetchBadgeCounts, 25000);
-    return () => clearInterval(interval);
-  }, [fetchBadgeCounts]);
-
-  const handleCaseCreated = (caseItem) => {
-    setHighlightCaseId(caseItem.id);
-    fetchBadgeCounts();
-    showToast(
-      `Case submitted: ${caseItem.disease || 'Analyzed'} (${caseItem.risk_level || 'Low'} Risk)`,
-      'success'
-    );
   };
 
-  const handleNavigateToOfficer = (caseItem) => {
-    if (caseItem) {
-      setHighlightCaseId(caseItem.id);
-    }
-    setActiveTab('officer');
-  };
+  return <NotFoundPage onNavigateHome={handleReturnHome} />;
+}
 
-  const handleNavigateToOutbreaks = () => {
-    setActiveTab('outbreaks');
-  };
-
-  const isKnownTab = VALID_TABS.includes(activeTab);
-
+function AppRoutes() {
   return (
-    <div className="cropshield-app">
-      {/* Clean Top Navigation */}
-      <Navbar
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        needsVerificationCount={needsVerificationCount}
-        alertsCount={alertsCount}
-        onBackendStatusChange={(online) => {
-          setIsBackendOnline(online);
-          if (online) fetchBadgeCounts();
-        }}
-      />
+    <Routes>
+      {/* Root redirect */}
+      <Route path="/" element={<RootRedirect />} />
 
-      {/* Main Content Area */}
-      <main className="app-main">
-        {activeTab === 'farmer' && (
-          <FarmerSubmissionPage
-            onCaseCreated={handleCaseCreated}
-            onNavigateToOfficer={handleNavigateToOfficer}
-          />
-        )}
+      {/* Public Login Route */}
+      <Route path="/login" element={<LoginPage />} />
 
-        {activeTab === 'officer' && (
-          <OfficerDashboardPage highlightCaseId={highlightCaseId} />
-        )}
+      {/* Farmer Routes: Mobile-first Layout */}
+      <Route
+        path="/farmer"
+        element={
+          <ProtectedRoute allowedRole="farmer">
+            <FarmerLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<FarmerHomePage />} />
+        <Route path="report" element={<FarmerSubmissionPage />} />
+        <Route path="reports" element={<FarmerReportsPage />} />
+        <Route path="reports/:id" element={<FarmerReportDetailPage />} />
+        <Route path="alerts" element={<FarmerAlertsPage />} />
+      </Route>
 
-        {activeTab === 'outbreaks' && <OutbreakIntelligencePage />}
+      {/* Officer Routes: Desktop-first Layout */}
+      <Route
+        path="/officer"
+        element={
+          <ProtectedRoute allowedRole="officer">
+            <OfficerLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<OfficerDashboardSummaryPage />} />
+        <Route path="queue" element={<OfficerDashboardPage />} />
+        <Route path="cases/:id" element={<OfficerCaseReviewPage />} />
+        <Route path="outbreaks" element={<OutbreakIntelligencePage />} />
+        <Route path="inspect" element={<OfficerInspectNextPage />} />
+        <Route path="alerts" element={<AlertsPage />} />
+        <Route path="risk-sim" element={<RiskSimulatorPage />} />
+      </Route>
 
-        {activeTab === 'alerts' && (
-          <AlertsPage onNavigateToOutbreaks={handleNavigateToOutbreaks} />
-        )}
-
-        {activeTab === 'risk-sim' && <RiskSimulatorPage />}
-
-        {!isKnownTab && (
-          <NotFoundPage onNavigateHome={(tab) => setActiveTab(tab || 'farmer')} />
-        )}
-      </main>
-
-      {/* Accessible Toast Notification Feedback */}
-      {toast && (
-        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999 }}>
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        </div>
-      )}
-
-      {/* Clean Light Footer - Dev details only visible in DEV */}
-      <footer className="app-footer">
-        <div className="footer-container">
-          <div className="footer-brand">
-            <strong>CropShield</strong> &mdash; Agricultural Disease Surveillance & Outbreak Intelligence
-          </div>
-          {import.meta.env.DEV && (
-            <div className="footer-meta">
-              <span>
-                API: <code>{API_BASE_URL}</code> ({IS_MOCK ? 'Mock Active' : isBackendOnline ? 'Online' : 'Offline'})
-              </span>
-            </div>
-          )}
-        </div>
-      </footer>
-    </div>
+      {/* 404 Catch-All */}
+      <Route path="*" element={<RoleAwareNotFound />} />
+    </Routes>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <div className="cropshield-app">
+          <AppRoutes />
+        </div>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
