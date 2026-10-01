@@ -1,30 +1,20 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Smartphone, Briefcase, KeyRound, Wrench } from 'lucide-react';
+import { Shield, Smartphone, Briefcase, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/common/Button';
-import { Input } from '../components/common/Input';
-import { ErrorState } from '../components/common/ErrorState';
-import { formatErrorMessage } from '../services/api';
 import useDocumentMetadata from '../hooks/useDocumentMetadata';
 
 export default function LoginPage() {
   useDocumentMetadata({
-    title: 'Sign In — CropShield',
-    description: 'Secure role-based authentication for farmers and agricultural surveillance officers.',
+    title: 'Select Role — CropShield',
+    description: 'Direct role selection for farmers and agricultural surveillance officers.',
   });
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
-
-  const [activeRole, setActiveRole] = useState('farmer'); // 'farmer' | 'officer'
-  const [phone, setPhone] = useState('9845012345');
-  const [otp, setOtp] = useState('123456');
-  const [officerId, setOfficerId] = useState('KA-AGRI-042');
-  const [password, setPassword] = useState('officer@2026');
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
+  const { selectRole } = useAuth();
+  const [selectedRole, setSelectedRole] = useState('farmer');
 
   const redirectAfterLogin = (role) => {
     const from = location.state?.from?.pathname;
@@ -37,66 +27,14 @@ export default function LoginPage() {
     }
   };
 
-  const handleFarmerSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      await login({
-        role: 'farmer',
-        phone: phone.trim(),
-        otp: otp.trim(),
-      });
-      redirectAfterLogin('farmer');
-    } catch (err) {
-      setErrorMessage(formatErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleOfficerSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      await login({
-        role: 'officer',
-        officerId: officerId.trim(),
-        password: password.trim(),
-      });
-      redirectAfterLogin('officer');
-    } catch (err) {
-      setErrorMessage(formatErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Dev quick login triggers
-  const handleQuickLogin = async (role) => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      if (role === 'farmer') {
-        await login({ role: 'farmer', phone: '9845012345', otp: '123456' });
-        redirectAfterLogin('farmer');
-      } else {
-        await login({ role: 'officer', officerId: 'KA-AGRI-042', password: 'demo' });
-        redirectAfterLogin('officer');
-      }
-    } catch (err) {
-      setErrorMessage(formatErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
+  const handleLaunch = (role) => {
+    selectRole(role);
+    redirectAfterLogin(role);
   };
 
   return (
     <div className="login-page-shell">
-      <div className="login-card">
+      <div className="login-card" style={{ maxWidth: '520px' }}>
         {/* Brand Header */}
         <div className="login-header">
           <div className="login-brand-icon" aria-hidden="true">
@@ -108,155 +46,154 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Role Selector */}
-        <div className="role-switcher-box" role="tablist" aria-label="Select User Role">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeRole === 'farmer'}
-            className={`role-btn ${activeRole === 'farmer' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveRole('farmer');
-              setErrorMessage(null);
-            }}
-          >
-            <Smartphone size={16} aria-hidden="true" />
-            <span>Farmer</span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeRole === 'officer'}
-            className={`role-btn ${activeRole === 'officer' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveRole('officer');
-              setErrorMessage(null);
-            }}
-          >
-            <Briefcase size={16} aria-hidden="true" />
-            <span>Verified Officer</span>
-          </button>
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+            Select your portal to explore the system:
+          </p>
         </div>
 
-        {/* Error message */}
-        {errorMessage && (
-          <div className="mb-4">
-            <ErrorState
-              title="Authentication Failed"
-              message={errorMessage}
-              onRetry={() => setErrorMessage(null)}
-            />
-          </div>
-        )}
-
-        {/* Farmer Login Form (Phone + OTP) */}
-        {activeRole === 'farmer' && (
-          <form onSubmit={handleFarmerSubmit} className="flex flex-col gap-3">
-            <Input
-              id="farmer-phone"
-              label="Mobile Number"
-              type="tel"
-              required
-              placeholder="e.g. 98450 12345"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              helperText="Any 10-digit number accepted in mock mode"
-            />
-
-            <Input
-              id="farmer-otp"
-              label="6-Digit OTP"
-              type="text"
-              required
-              maxLength={6}
-              placeholder="Enter OTP (Mock: 123456)"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              helperText="Test OTP is 123456"
-            />
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              block
-              loading={isLoading}
-              className="mt-2"
+        {/* Role Options */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+          {/* Farmer Option Card */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedRole('farmer')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                setSelectedRole('farmer');
+              }
+            }}
+            style={{
+              padding: '18px 20px',
+              borderRadius: 'var(--radius-lg)',
+              border: `2px solid ${selectedRole === 'farmer' ? 'var(--primary)' : 'var(--border-card)'}`,
+              background: selectedRole === 'farmer' ? 'var(--primary-50, #f0fdf4)' : 'var(--bg-card, #ffffff)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '14px',
+              textAlign: 'left',
+            }}
+          >
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: 'var(--radius-md)',
+                background: selectedRole === 'farmer' ? 'var(--primary)' : 'var(--bg-subtle)',
+                color: selectedRole === 'farmer' ? '#ffffff' : 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
             >
-              Login as Farmer
-            </Button>
-          </form>
-        )}
-
-        {/* Officer Login Form (Officer ID + Password) */}
-        {activeRole === 'officer' && (
-          <form onSubmit={handleOfficerSubmit} className="flex flex-col gap-3">
-            <Input
-              id="officer-id"
-              label="Agricultural Officer ID"
-              type="text"
-              required
-              placeholder="e.g. KA-AGRI-042"
-              value={officerId}
-              onChange={(e) => setOfficerId(e.target.value)}
-              helperText="Government or Department Issued Officer Code"
-            />
-
-            <Input
-              id="officer-password"
-              label="Password"
-              type="password"
-              required
-              placeholder="Enter officer password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              block
-              loading={isLoading}
-              icon={KeyRound}
-              className="mt-2"
-            >
-              Sign In as Officer
-            </Button>
-          </form>
-        )}
-
-        {/* Dev Quick Login Buttons (Visible only in DEV mode) */}
-        {import.meta.env.DEV && (
-          <div className="dev-quick-login-box">
-            <div className="dev-quick-title">
-              <Wrench size={14} aria-hidden="true" />
-              <span>Dev: Quick Login (Bypass form)</span>
+              <Smartphone size={22} />
             </div>
-            <div className="dev-quick-btns">
-              <Button
-                variant="secondary"
-                size="xs"
-                block
-                disabled={isLoading}
-                onClick={() => handleQuickLogin('farmer')}
-              >
-                Farmer (Ramesh)
-              </Button>
-              <Button
-                variant="secondary"
-                size="xs"
-                block
-                disabled={isLoading}
-                onClick={() => handleQuickLogin('officer')}
-              >
-                Officer (Dr. Suresh)
-              </Button>
+
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                  Farmer Experience
+                </h2>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-full)',
+                    background: 'var(--primary-100, #dcfce7)',
+                    color: 'var(--primary, #15803d)',
+                  }}
+                >
+                  Mobile-First &bull; Vernacular
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
+                Submit disease observations, capture leaf photos, get instant diagnostic advice, and view regional alerts in Kannada, Hindi, Telugu, or English.
+              </p>
             </div>
           </div>
-        )}
+
+          {/* Officer Option Card */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedRole('officer')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                setSelectedRole('officer');
+              }
+            }}
+            style={{
+              padding: '18px 20px',
+              borderRadius: 'var(--radius-lg)',
+              border: `2px solid ${selectedRole === 'officer' ? 'var(--primary)' : 'var(--border-card)'}`,
+              background: selectedRole === 'officer' ? 'var(--primary-50, #f0fdf4)' : 'var(--bg-card, #ffffff)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '14px',
+              textAlign: 'left',
+            }}
+          >
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: 'var(--radius-md)',
+                background: selectedRole === 'officer' ? 'var(--primary)' : 'var(--bg-subtle)',
+                color: selectedRole === 'officer' ? '#ffffff' : 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Briefcase size={22} />
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                  Agricultural Officer
+                </h2>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-full)',
+                    background: 'var(--primary-100, #dcfce7)',
+                    color: 'var(--primary, #15803d)',
+                  }}
+                >
+                  Surveillance Command
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
+                Review incoming cases, inspect specimen images, verify diagnoses, monitor DBSCAN outbreak density clusters, and run environmental risk simulations.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Primary Launch Action */}
+        <Button
+          type="button"
+          variant="primary"
+          size="lg"
+          block
+          icon={ArrowRight}
+          onClick={() => handleLaunch(selectedRole)}
+        >
+          {selectedRole === 'farmer' ? 'Launch Farmer Portal' : 'Launch Officer Command Center'}
+        </Button>
       </div>
     </div>
   );
 }
+

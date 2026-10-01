@@ -1,16 +1,33 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { login as apiLogin, logout as apiLogout } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const STORAGE_KEY_USER = 'cropshield_auth_user';
-const STORAGE_KEY_TOKEN = 'cropshield_auth_token';
+const STORAGE_KEY_ROLE = 'cropshield_role';
+
+function createProfile(role) {
+  if (role === 'officer') {
+    return {
+      role: 'officer',
+      name: 'Agricultural Officer',
+      district: 'Kolar & Chikkaballapur',
+      jurisdiction: 'Kolar, Chikkaballapur & Bengaluru Rural',
+    };
+  }
+  return {
+    role: 'farmer',
+    name: 'Farmer',
+    district: 'Kolar',
+  };
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY_USER);
-      return stored ? JSON.parse(stored) : null;
+      const storedRole = localStorage.getItem(STORAGE_KEY_ROLE);
+      if (storedRole === 'farmer' || storedRole === 'officer') {
+        return createProfile(storedRole);
+      }
+      return null;
     } catch {
       return null;
     }
@@ -21,10 +38,10 @@ export function AuthProvider({ children }) {
   // Sync state across browser tabs if needed
   useEffect(() => {
     const handleStorageChange = (e) => {
-      if (e.key === STORAGE_KEY_USER) {
-        try {
-          setUser(e.newValue ? JSON.parse(e.newValue) : null);
-        } catch {
+      if (e.key === STORAGE_KEY_ROLE) {
+        if (e.newValue === 'farmer' || e.newValue === 'officer') {
+          setUser(createProfile(e.newValue));
+        } else {
           setUser(null);
         }
       }
@@ -34,45 +51,44 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const login = useCallback(async (credentials) => {
+  const selectRole = useCallback((role) => {
+    const validRole = role === 'officer' ? 'officer' : 'farmer';
+    const profile = createProfile(validRole);
+    try {
+      localStorage.setItem(STORAGE_KEY_ROLE, validRole);
+    } catch {}
+    setUser(profile);
+    return profile;
+  }, []);
+
+  // Backwards-compatible login method for role-selection
+  const login = useCallback(async (credentials = {}) => {
     setIsLoading(true);
     try {
-      const res = await apiLogin(credentials);
-      const authenticatedUser = res?.user || null;
-      const token = res?.token || '';
-
-      if (authenticatedUser) {
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(authenticatedUser));
-      }
-      if (token) {
-        localStorage.setItem(STORAGE_KEY_TOKEN, token);
-      }
-
-      setUser(authenticatedUser);
-      return authenticatedUser;
+      const targetRole = credentials.role === 'officer' ? 'officer' : 'farmer';
+      return selectRole(targetRole);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectRole]);
 
   const logout = useCallback(async () => {
     setIsLoading(true);
     try {
-      await apiLogout();
-    } finally {
-      localStorage.removeItem(STORAGE_KEY_USER);
-      localStorage.removeItem(STORAGE_KEY_TOKEN);
+      localStorage.removeItem(STORAGE_KEY_ROLE);
       setUser(null);
+    } finally {
       setIsLoading(false);
     }
   }, []);
 
   const value = {
     user,
-    isAuthenticated: Boolean(user),
+    isAuthenticated: Boolean(user?.role),
     isFarmer: user?.role === 'farmer',
     isOfficer: user?.role === 'officer',
     isLoading,
+    selectRole,
     login,
     logout,
   };
@@ -89,3 +105,4 @@ export function useAuth() {
 }
 
 export default AuthContext;
+

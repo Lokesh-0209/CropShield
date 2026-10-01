@@ -74,10 +74,10 @@ export default function OfficerCaseReviewPage() {
 
   // Alternatives generator based on crop and disease
   const alternatives = useMemo(() => {
-    if (!caseItem) return [];
+    if (!caseItem || !caseItem.disease) return [];
 
-    const primaryDisease = caseItem.disease || 'Tomato Early Blight';
-    const primaryConf = caseItem.confidence ?? 0.88;
+    const primaryDisease = caseItem.disease;
+    const primaryConf = caseItem.confidence ?? 0.75;
     const remaining = Math.max(0.01, 1 - primaryConf);
 
     if (primaryDisease.includes('Tomato Early Blight')) {
@@ -161,11 +161,6 @@ export default function OfficerCaseReviewPage() {
         officer_note: finalNote,
       };
 
-      if (activeActionModal === 'CORRECT') {
-        verificationPayload.corrected_disease = correctedDisease;
-        verificationPayload.disease = correctedDisease;
-      }
-
       await verifyMutation.mutateAsync({
         caseId: caseItem.id,
         verification: verificationPayload,
@@ -213,7 +208,8 @@ export default function OfficerCaseReviewPage() {
     );
   }
 
-  const primaryConfidencePct = Math.round((caseItem.confidence ?? 0.88) * 100);
+  const hasAiPrediction = Boolean(caseItem.disease);
+  const primaryConfidencePct = caseItem.confidence != null ? Math.round(caseItem.confidence * 100) : null;
 
   return (
     <div className="page-shell">
@@ -340,7 +336,9 @@ export default function OfficerCaseReviewPage() {
                       AI Computer Vision Diagnosis
                     </div>
                     <div className="text-muted text-xs">
-                      Diagnosed <strong>{caseItem.disease}</strong> with {primaryConfidencePct}% confidence score
+                      {hasAiPrediction
+                        ? `Diagnosed ${caseItem.disease}${primaryConfidencePct != null ? ` with ${primaryConfidencePct}% confidence score` : ''}`
+                        : 'Preliminary AI diagnostic inference unavailable on server.'}
                     </div>
                   </div>
                 </div>
@@ -435,22 +433,41 @@ export default function OfficerCaseReviewPage() {
                   {caseItem.disease || 'Pending Analysis'}
                 </div>
 
-                <div style={{ marginTop: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', marginBottom: '4px' }}>
-                    <span className="text-muted">Primary Confidence Score</span>
-                    <strong className="font-mono text-primary">{primaryConfidencePct}%</strong>
+                {hasAiPrediction && primaryConfidencePct != null ? (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', marginBottom: '4px' }}>
+                      <span className="text-muted">Primary Confidence Score</span>
+                      <strong className="font-mono text-primary">{primaryConfidencePct}%</strong>
+                    </div>
+                    <div className="progress-track" style={{ height: '8px' }}>
+                      <div
+                        className="progress-fill"
+                        style={{
+                          width: `${primaryConfidencePct}%`,
+                          background:
+                            primaryConfidencePct >= 80 ? 'var(--primary)' : primaryConfidencePct >= 50 ? 'var(--severity-medium)' : 'var(--severity-high)',
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="progress-track" style={{ height: '8px' }}>
-                    <div
-                      className="progress-fill"
-                      style={{
-                        width: `${primaryConfidencePct}%`,
-                        background:
-                          primaryConfidencePct >= 80 ? 'var(--primary)' : primaryConfidencePct >= 50 ? 'var(--severity-medium)' : 'var(--severity-high)',
-                      }}
-                    />
+                ) : (
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '12px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: '#fffbeb',
+                      border: '1px solid #fde68a',
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, fontSize: '13px', color: '#b45309', marginBottom: '3px' }}>
+                      AI Analysis Pending
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#78350f', lineHeight: 1.45 }}>
+                      The AI diagnosis model is currently unavailable. Disease and confidence results will appear once AI analysis is available.
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Top 3 Alternative Predictions */}
@@ -458,37 +475,43 @@ export default function OfficerCaseReviewPage() {
                 <span className="text-muted text-xs font-semibold uppercase block mb-2">
                   Top 3 Alternative Classifications
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {alternatives.map((alt) => {
-                    const altPct = Math.round(alt.confidence * 100);
-                    return (
-                      <div key={alt.disease} style={{ background: 'var(--bg-subtle)', padding: '8px 12px', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px', marginBottom: '3px' }}>
-                          <span style={{ fontWeight: 600 }}>{alt.disease}</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <strong className="font-mono text-muted">{altPct}%</strong>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-xs"
-                              style={{ padding: '1px 7px', fontSize: '11px', height: '22px' }}
-                              onClick={() => {
-                                setActiveActionModal('CORRECT');
-                                setCorrectedDisease(alt.disease);
-                                setOfficerNote(`Reclassified to ${alt.disease} based on alternative model classification.`);
-                              }}
-                              title={`Select ${alt.disease} as correction`}
-                            >
-                              Use
-                            </button>
+                {alternatives && alternatives.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {alternatives.map((alt) => {
+                      const altPct = Math.round(alt.confidence * 100);
+                      return (
+                        <div key={alt.disease} style={{ background: 'var(--bg-subtle)', padding: '8px 12px', borderRadius: 'var(--radius-md)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px', marginBottom: '3px' }}>
+                            <span style={{ fontWeight: 600 }}>{alt.disease}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <strong className="font-mono text-muted">{altPct}%</strong>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-xs"
+                                style={{ padding: '1px 7px', fontSize: '11px', height: '22px' }}
+                                onClick={() => {
+                                  setActiveActionModal('CORRECT');
+                                  setCorrectedDisease(alt.disease);
+                                  setOfficerNote(`Reclassified to ${alt.disease} based on alternative model classification.`);
+                                }}
+                                title={`Select ${alt.disease} as correction`}
+                              >
+                                Use
+                              </button>
+                            </div>
+                          </div>
+                          <div className="progress-track" style={{ height: '4px' }}>
+                            <div className="progress-fill" style={{ width: `${altPct}%`, background: '#94a3b8' }} />
                           </div>
                         </div>
-                        <div className="progress-track" style={{ height: '4px' }}>
-                          <div className="progress-fill" style={{ width: `${altPct}%`, background: '#94a3b8' }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    No alternative differential diagnoses available (awaiting AI analysis).
+                  </div>
+                )}
               </div>
             </CardBody>
           </Card>
@@ -508,7 +531,7 @@ export default function OfficerCaseReviewPage() {
                     <Thermometer size={16} className="text-muted mb-1" />
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Temp</div>
                     <div style={{ fontSize: '15px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
-                      {caseItem.environmental_data.temperature}°C
+                      {caseItem.environmental_data?.temperature ?? 25}°C
                     </div>
                   </div>
 
@@ -516,7 +539,7 @@ export default function OfficerCaseReviewPage() {
                     <Droplets size={16} className="text-muted mb-1" />
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Humidity</div>
                     <div style={{ fontSize: '15px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
-                      {caseItem.environmental_data.humidity}%
+                      {caseItem.environmental_data?.humidity ?? 70}%
                     </div>
                   </div>
 
@@ -524,7 +547,7 @@ export default function OfficerCaseReviewPage() {
                     <CloudRain size={16} className="text-muted mb-1" />
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Rainfall</div>
                     <div style={{ fontSize: '15px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
-                      {caseItem.environmental_data.rainfall} mm
+                      {caseItem.environmental_data?.rainfall ?? 0} mm
                     </div>
                   </div>
 
@@ -532,7 +555,7 @@ export default function OfficerCaseReviewPage() {
                     <Layers size={16} className="text-muted mb-1" />
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cluster Cases</div>
                     <div style={{ fontSize: '15px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--severity-high)' }}>
-                      {caseItem.environmental_data.nearby_verified_cases || 2}
+                      {caseItem.environmental_data?.nearby_verified_cases ?? 0}
                     </div>
                   </div>
                 </div>

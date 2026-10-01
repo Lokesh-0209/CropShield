@@ -109,14 +109,21 @@ export default function OfficerLeafletMap({
     if (mode === 'outbreaks') {
       // 1. Render Cluster Circles & Center Badges
       clusters.forEach((cluster) => {
-        const lat = cluster.center_latitude;
-        const lng = cluster.center_longitude;
-        if (typeof lat !== 'number' || typeof lng !== 'number') return;
+        const lat =
+          typeof cluster.center_latitude === 'number'
+            ? cluster.center_latitude
+            : parseFloat(cluster.center_latitude || cluster.center_lat);
+        const lng =
+          typeof cluster.center_longitude === 'number'
+            ? cluster.center_longitude
+            : parseFloat(cluster.center_longitude || cluster.center_lon);
+        if (isNaN(lat) || isNaN(lng)) return;
 
         allBounds.push([lat, lng]);
         const severity = getSeverityProps(cluster.outbreak_level);
         const radiusMeters = (cluster.radius_km || 1.8) * 1000;
-        const isSelected = selectedItem && selectedItem.cluster_id === cluster.cluster_id;
+        const clusterId = cluster.cluster_id ?? cluster.id;
+        const isSelected = selectedItem && (selectedItem.cluster_id === clusterId || selectedItem.id === clusterId);
 
         // Visual Circle Perimeter
         const circle = L.circle([lat, lng], {
@@ -296,12 +303,12 @@ export default function OfficerLeafletMap({
     let targetLat = null;
     let targetLng = null;
 
-    if (selectedItem.center_latitude) {
-      targetLat = selectedItem.center_latitude;
-      targetLng = selectedItem.center_longitude;
+    if (selectedItem.center_latitude || selectedItem.center_lat) {
+      targetLat = Number(selectedItem.center_latitude ?? selectedItem.center_lat);
+      targetLng = Number(selectedItem.center_longitude ?? selectedItem.center_lon);
     } else if (selectedItem.latitude) {
-      targetLat = selectedItem.latitude;
-      targetLng = selectedItem.longitude;
+      targetLat = Number(selectedItem.latitude);
+      targetLng = Number(selectedItem.longitude);
     }
 
     if (typeof targetLat === 'number' && typeof targetLng === 'number') {

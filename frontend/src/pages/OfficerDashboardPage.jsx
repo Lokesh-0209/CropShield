@@ -16,7 +16,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useCases } from '../services/queries';
-import { analyzeCase } from '../api/cases';
 import { CaseStatus, formatErrorMessage } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import VerificationModal from '../components/VerificationModal';

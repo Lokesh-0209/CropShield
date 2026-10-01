@@ -9,9 +9,9 @@ const DEFAULT_LAT = 13.1368;
 const DEFAULT_LNG = 78.1348;
 
 /**
- * Mock reverse geocode based on coordinates
+ * Format human-readable location label based on coordinates
  */
-function mockReverseGeocode(lat, lng) {
+function formatLocationLabel(lat, lng) {
   const roundLat = Math.round(lat * 100) / 100;
   const roundLng = Math.round(lng * 100) / 100;
 
@@ -121,7 +121,7 @@ export default function LocationPicker({
           setManualLat(String(lat));
           setManualLng(String(lng));
           setGeoError('');
-          const suggestedName = locationName || mockReverseGeocode(lat, lng);
+          const suggestedName = locationName || formatLocationLabel(lat, lng);
           onChangeRef.current?.({ latitude: lat, longitude: lng, locationName: suggestedName });
         });
       }
@@ -143,7 +143,7 @@ export default function LocationPicker({
             setManualLat(String(pLat));
             setManualLng(String(pLng));
             setGeoError('');
-            const suggestedName = locationName || mockReverseGeocode(pLat, pLng);
+            const suggestedName = locationName || formatLocationLabel(pLat, pLng);
             onChangeRef.current?.({ latitude: pLat, longitude: pLng, locationName: suggestedName });
           });
 
@@ -155,7 +155,7 @@ export default function LocationPicker({
         setManualLat(String(lat));
         setManualLng(String(lng));
         setGeoError('');
-        const suggestedName = locationName || mockReverseGeocode(lat, lng);
+        const suggestedName = locationName || formatLocationLabel(lat, lng);
         onChangeRef.current?.({ latitude: lat, longitude: lng, locationName: suggestedName });
       });
 
@@ -193,7 +193,7 @@ export default function LocationPicker({
           setManualLat(String(lat));
           setManualLng(String(lng));
           setGeoError('');
-          const suggestedName = locationName || mockReverseGeocode(lat, lng);
+          const suggestedName = locationName || formatLocationLabel(lat, lng);
           onChangeRef.current?.({ latitude: lat, longitude: lng, locationName: suggestedName });
         });
 
@@ -246,7 +246,7 @@ export default function LocationPicker({
 
         setManualLat(String(roundedLat));
         setManualLng(String(roundedLng));
-        const suggestedName = locationName || mockReverseGeocode(roundedLat, roundedLng);
+        const suggestedName = locationName || formatLocationLabel(roundedLat, roundedLng);
         onChangeRef.current?.({
           latitude: roundedLat,
           longitude: roundedLng,
@@ -287,7 +287,7 @@ export default function LocationPicker({
       mapInstanceRef.current.setView([lat, lng], 14);
     }
 
-    const suggestedName = locationName || mockReverseGeocode(lat, lng);
+    const suggestedName = locationName || formatLocationLabel(lat, lng);
     onChangeRef.current?.({
       latitude: lat,
       longitude: lng,

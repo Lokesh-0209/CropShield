@@ -102,18 +102,6 @@ export default function CaseTrendChart({ cases = [] }) {
       });
     }
 
-    // If all totals are 0 (e.g. mock seed cases with simulated dates), create representative distribution
-    const totalFound = buckets.reduce((sum, b) => sum + b.total, 0);
-    if (totalFound === 0 && cases.length > 0) {
-      cases.forEach((c, idx) => {
-        const bucketIdx = (idx * 5 + 7) % 30;
-        buckets[bucketIdx].total += 1;
-        if ((c.status || '').toUpperCase() === 'VERIFIED') buckets[bucketIdx].verified += 1;
-        else buckets[bucketIdx].needsVerification += 1;
-        if ((c.risk_level || '').toUpperCase() === 'HIGH') buckets[bucketIdx].highRisk += 1;
-      });
-    }
-
     return buckets;
   }, [cases]);
 

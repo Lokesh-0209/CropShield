@@ -153,7 +153,7 @@ export default function OfficerLayout() {
             {/* Verified Officer Badge */}
             <div
               className="officer-badge-pill"
-              title={`Authenticated Officer: ${user?.name || 'Dr. Suresh Patil'} (${user?.district || 'Karnataka'})`}
+              title={`Agricultural Officer: ${user?.name || 'Dr. Suresh Patil'} (${user?.district || 'Karnataka'})`}
             >
               <ShieldCheck size={14} className="text-primary flex-shrink-0" aria-hidden="true" />
               <span>

@@ -147,7 +147,9 @@ export const DISEASE_TREATMENTS = {
  * Get treatment advice for a given disease name, with a safe fallback
  */
 export function getTreatmentAdvice(diseaseName) {
-  if (!diseaseName) return DISEASE_TREATMENTS['Foliar Blight'];
+  if (!diseaseName || typeof diseaseName !== 'string' || !diseaseName.trim()) {
+    return null;
+  }
 
   // Check exact match
   if (DISEASE_TREATMENTS[diseaseName]) {

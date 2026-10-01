@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { WifiOff } from 'lucide-react';
 import { getHealthStatus } from '../../api/health';
-import { IS_MOCK } from '../../services/api';
 
 export function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(() =>
@@ -16,35 +15,26 @@ export function OfflineIndicator() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // If mock mode is on, API is always considered reachable in-browser
-    if (IS_MOCK) {
-      setIsApiReachable(true);
-    } else {
-      const checkHealth = async () => {
-        try {
-          const res = await getHealthStatus();
-          setIsApiReachable(Boolean(res && (res.status === 'ok' || res.status === 'healthy')));
-        } catch {
-          setIsApiReachable(false);
-        }
-      };
+    const checkHealth = async () => {
+      try {
+        const res = await getHealthStatus();
+        setIsApiReachable(Boolean(res && (res.status === 'ok' || res.status === 'healthy')));
+      } catch {
+        setIsApiReachable(false);
+      }
+    };
 
-      checkHealth();
-      const interval = setInterval(checkHealth, 30000);
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-        clearInterval(interval);
-      };
-    }
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      clearInterval(interval);
     };
   }, []);
 
-  const shouldShow = !isOnline || (!isApiReachable && !IS_MOCK);
+  const shouldShow = !isOnline || !isApiReachable;
 
   if (!shouldShow) return null;
 

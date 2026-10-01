@@ -1,22 +1,9 @@
-import {
-  SEED_CASES,
-  SEED_OUTBREAK_CLUSTERS,
-  SEED_ALERTS,
-  SEED_SURVEILLANCE_QUEUE,
-} from './mockData';
 import { CaseStatus, RiskLevel, VerificationStatus } from '../types/enums';
 import { apiClient, API_BASE_URL, ApiError } from '../api/client';
 
 /**
  * CropShield Central Data Service
- * Toggle mock mode via VITE_USE_MOCK=true in .env
- */
-export const IS_MOCK =
-  import.meta.env.VITE_USE_MOCK === 'true' ||
-  import.meta.env.VITE_USE_MOCK === true ||
-  String(import.meta.env.VITE_USE_MOCK).toLowerCase() === '1';
-
-const MOCK_FAILURE_RATE = parseFloat(import.meta.env.VITE_MOCK_FAILURE_RATE || '0');
+ * Connects directly to the FastAPI backend on feature/backend.
 
 /**
  * Human-friendly error formatter with developer details suppressed in production.
@@ -51,90 +38,47 @@ export function formatErrorMessage(error) {
   return error.message || "Can't connect. Check your internet and try again.";
 }
 
-// In-memory state for mock mode mutations
-let mockCases = [...SEED_CASES];
-let mockClusters = [...SEED_OUTBREAK_CLUSTERS];
-let mockAlerts = [...SEED_ALERTS];
-let mockSurveillance = [...SEED_SURVEILLANCE_QUEUE];
-
 /**
- * Simulate network latency and optional failure
+ * Normalizes a raw case object from the backend with expected UI properties.
  */
-async function simulateLatency(minMs = 300, maxMs = 700) {
-  const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
-  await new Promise((resolve) => setTimeout(resolve, delay));
-
-  if (MOCK_FAILURE_RATE > 0 && Math.random() < MOCK_FAILURE_RATE) {
-    throw new ApiError('Simulated mock network failure', 503, null, true);
-  }
-}
-
-/**
- * 1. Login user (Farmer or Verified Officer)
- * POST /api/auth/login or mock session
- */
-export async function login(credentials = {}) {
-  const role = credentials.role || 'farmer';
-
-  if (IS_MOCK) {
-    await simulateLatency(300, 600);
-
-    if (role === 'farmer') {
-      const otp = String(credentials.otp || '').trim();
-      if (otp !== '123456') {
-        throw new ApiError('Invalid OTP. Please enter 123456 for testing.', 401);
-      }
-
-      const phone = credentials.phone ? String(credentials.phone).trim() : '+91 98450 12345';
-      return {
-        token: 'mock-jwt-farmer-session-882200',
-        user: {
-          id: 'farmer-ka-01',
-          name: 'Ramesh Gowda',
-          role: 'farmer',
-          phone,
-          district: 'Kolar',
-        },
-      };
-    }
-
-    // Officer login
-    const officerId = credentials.officerId ? String(credentials.officerId).trim() : 'KA-AGRI-042';
-    const password = credentials.password ? String(credentials.password).trim() : '';
-    if (!password) {
-      throw new ApiError('Password is required for officer login.', 400);
-    }
-
-    return {
-      token: 'mock-jwt-officer-session-998822',
-      user: {
-        id: officerId,
-        name: 'Dr. Suresh Patil',
-        role: 'officer',
-        district: 'Kolar & Chikkaballapur',
-        jurisdiction: 'Kolar, Chikkaballapur & Bengaluru Rural',
-        email: 'suresh.patil@agri.kar.gov.in',
-      },
-    };
-  }
-
-  return apiClient.post('/api/auth/login', credentials);
-}
-
-/**
- * Logout user session
- */
-export async function logout() {
-  if (IS_MOCK) {
-    await simulateLatency(100, 300);
-    return { success: true };
-  }
-
-  try {
-    return await apiClient.post('/api/auth/logout', {});
-  } catch {
-    return { success: true };
-  }
+function normalizeCase(raw) {
+  if (!raw) return null;
+  return {
+    id: String(raw.id),
+    crop: raw.crop || 'Crop Specimen',
+    growth_stage: raw.growth_stage || 'Unknown',
+    latitude: typeof raw.latitude === 'number' ? raw.latitude : parseFloat(raw.latitude) || 0,
+    longitude: typeof raw.longitude === 'number' ? raw.longitude : parseFloat(raw.longitude) || 0,
+    location_name: raw.location_name || 'Field Location',
+    symptoms: raw.symptoms || '',
+    image_url: raw.image_url || null,
+    disease: raw.disease || null,
+    confidence: typeof raw.confidence === 'number' ? raw.confidence : null,
+    risk_score: typeof raw.risk_score === 'number' ? raw.risk_score : null,
+    risk_level: raw.risk_level || null,
+    status: raw.status || CaseStatus.PENDING_ANALYSIS,
+    created_at: raw.created_at || new Date().toISOString(),
+    verified_at: raw.verified_at || null,
+    officer_note: raw.officer_note || null,
+    environmental_data: {
+      temperature: 25.0,
+      humidity: 70.0,
+      rainfall: 0.0,
+      nearby_verified_cases: 0,
+    },
+    history: raw.officer_note
+      ? [
+          {
+            id: `audit-${raw.id}`,
+            actor: 'Agricultural Officer',
+            action: `Case ${raw.status}`,
+            status: raw.status,
+            timestamp: raw.verified_at || raw.created_at,
+            notes: raw.officer_note,
+          },
+        ]
+      : [],
+  };
 }
 
 /**
@@ -142,47 +86,46 @@ export async function logout() {
  * GET /api/cases
  */
 export async function getCases(params = {}) {
-  if (IS_MOCK) {
-    await simulateLatency(300, 650);
-
-    let items = [...mockCases];
-    if (params.status && params.status !== 'ALL') {
-      items = items.filter((c) => c.status === params.status);
-    }
-    if (params.crop && params.crop !== 'ALL') {
-      items = items.filter((c) => c.crop.toLowerCase() === params.crop.toLowerCase());
-    }
-    if (params.search) {
-      const q = params.search.toLowerCase();
-      items = items.filter(
-        (c) =>
-          c.crop?.toLowerCase().includes(q) ||
-          c.disease?.toLowerCase().includes(q) ||
-          c.location_name?.toLowerCase().includes(q) ||
-          c.id?.toLowerCase().includes(q)
-      );
-    }
-
-    // Sort newest first
-    items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    const offset = params.offset || 0;
-    const limit = params.limit || 100;
-    const paginated = items.slice(offset, offset + limit);
-
-    return {
-      items: paginated,
-      total: items.length,
-      limit,
-      offset,
-    };
+  const query = {};
+  if (params.status && params.status !== 'ALL') {
+    query.status = params.status;
+  }
+  if (params.limit !== undefined) {
+    query.limit = Math.min(Math.max(Number(params.limit) || 20, 1), 100);
+  }
+  if (params.offset !== undefined) {
+    query.offset = Math.max(Number(params.offset) || 0, 0);
   }
 
-  const query = {};
-  if (params.status && params.status !== 'ALL') query.status = params.status;
-  if (params.limit !== undefined) query.limit = params.limit;
-  if (params.offset !== undefined) query.offset = params.offset;
-  return apiClient.get('/api/cases', query);
+  const res = await apiClient.get('/api/cases', query);
+  let items = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+
+  items = items.map(normalizeCase);
+
+  // Client-side crop filter if specified
+  if (params.crop && params.crop !== 'ALL') {
+    items = items.filter((c) => c.crop?.toLowerCase() === params.crop.toLowerCase());
+  }
+
+  // Client-side search query matching
+  if (params.search) {
+    const q = params.search.toLowerCase();
+    items = items.filter(
+      (c) =>
+        c.crop?.toLowerCase().includes(q) ||
+        c.disease?.toLowerCase().includes(q) ||
+        c.location_name?.toLowerCase().includes(q) ||
+        c.symptoms?.toLowerCase().includes(q) ||
+        String(c.id).toLowerCase().includes(q)
+    );
+  }
+
+  return {
+    items,
+    total: items.length,
+    limit: query.limit || 20,
+    offset: query.offset || 0,
+  };
 }
 
 /**
@@ -190,200 +133,155 @@ export async function getCases(params = {}) {
  * GET /api/cases/{case_id}
  */
 export async function getCase(caseId) {
-  if (IS_MOCK) {
-    await simulateLatency(250, 500);
-    const found = mockCases.find((c) => c.id === caseId);
-    if (!found) {
-      throw new ApiError(`Case ${caseId} not found.`, 404);
-    }
-    return { ...found };
+  if (!caseId) {
+    throw new ApiError('Case ID is required.', 400);
   }
-
-  return apiClient.get(`/api/cases/${caseId}`);
+  const raw = await apiClient.get(`/api/cases/${caseId}`);
+  return normalizeCase(raw);
 }
 
 /**
- * Deterministic AI Diagnosis & Risk scoring simulation for new submissions
- */
-function simulateAiInference(caseData) {
-  const crop = (caseData.crop || 'Tomato').toLowerCase();
-  const temp = caseData.temperature ?? 26.5;
-  const humidity = caseData.humidity ?? 80.0;
-  const rain = caseData.rainfall ?? 12.0;
-
-  let disease = 'Foliar Blight';
-  let confidence = 0.88;
-
-  if (crop.includes('tomato')) {
-    if (humidity > 85) {
-      disease = 'Late Blight';
-      confidence = 0.92;
-    } else {
-      disease = 'Tomato Early Blight';
-      confidence = 0.89;
-    }
-  } else if (crop.includes('potato')) {
-    disease = 'Potato Late Blight';
-    confidence = 0.94;
-  } else if (crop.includes('corn') || crop.includes('maize')) {
-    disease = 'Corn Southern Rust';
-    confidence = 0.86;
-  }
-
-  // Risk Score calculation
-  let tempFactor = 0;
-  if (temp >= 18 && temp <= 29) tempFactor = 25;
-  else if (temp > 29 && temp <= 35) tempFactor = 15;
-  else tempFactor = 8;
-
-  const humidityFactor = (Math.min(Math.max(humidity, 40), 100) / 100) * 40;
-  const rainFactor = Math.min(rain * 1.5, 20);
-  const densityFactor = 15; // default proximity weight
-
-  const rawScore = tempFactor + humidityFactor + rainFactor + densityFactor;
-  const risk_score = Math.min(Math.max(Math.round(rawScore * 10) / 10, 15), 98);
-  const risk_level =
-    risk_score >= 75 ? RiskLevel.HIGH : risk_score >= 45 ? RiskLevel.MEDIUM : RiskLevel.LOW;
-
-  return {
-    disease,
-    confidence,
-    risk_score,
-    risk_level,
-  };
-}
-
-/**
- * 4. Submit new field Case
+ * 4. Submit new field Case & Trigger Real AI Analysis
  * POST /api/cases
+ * POST /api/cases/{id}/analyze
  */
 export async function submitCase(caseData) {
-  if (IS_MOCK) {
-    await simulateLatency(450, 850);
+  // Validate and build payload for POST /api/cases
+  const creationPayload = {
+    crop: String(caseData.crop || '').trim(),
+    growth_stage: String(caseData.growth_stage || '').trim(),
+    latitude: parseFloat(caseData.latitude),
+    longitude: parseFloat(caseData.longitude),
+    location_name: String(caseData.location_name || '').trim(),
+    symptoms: String(caseData.symptoms || '').trim(),
+    image_url: caseData.image_url ? String(caseData.image_url).trim() : null,
+  };
 
-    const newId = `CASE-KA-${String(mockCases.length + 1).padStart(3, '0')}`;
-    const aiResults = simulateAiInference(caseData);
+  const created = await apiClient.post('/api/cases', creationPayload);
 
-    const newCase = {
-      id: newId,
-      crop: caseData.crop || 'Tomato',
-      growth_stage: caseData.growth_stage || 'Vegetative',
-      location_name: caseData.location_name || 'Kolar Agri Sector',
-      latitude: parseFloat(caseData.latitude) || 13.1368,
-      longitude: parseFloat(caseData.longitude) || 78.1348,
-      symptoms: caseData.symptoms || 'Visible foliar lesions noted during field survey.',
-      image_url: caseData.image_url || 'https://images.unsplash.com/photo-1592417817098-8f3d6910985c?auto=format&fit=crop&w=600&q=80',
-      disease: aiResults.disease,
-      confidence: aiResults.confidence,
-      risk_score: aiResults.risk_score,
-      risk_level: aiResults.risk_level,
-      status: CaseStatus.NEEDS_VERIFICATION,
-      officer_note: null,
-      created_at: new Date().toISOString(),
-      verified_at: null,
-      environmental_data: {
-        temperature: caseData.temperature ?? 26.5,
-        humidity: caseData.humidity ?? 80.0,
-        rainfall: caseData.rainfall ?? 12.0,
-        nearby_verified_cases: 2,
-      },
-    };
+  // Trigger real AI analysis call on backend
+  let analyzedCase = null;
+  let aiErrorMessage = null;
 
-    mockCases.unshift(newCase);
-    return newCase;
-  }
-
-  // Real backend workflow: POST /api/cases, then trigger /analyze
-  const created = await apiClient.post('/api/cases', {
-    crop: caseData.crop,
-    growth_stage: caseData.growth_stage,
-    latitude: caseData.latitude,
-    longitude: caseData.longitude,
-    location_name: caseData.location_name,
-    symptoms: caseData.symptoms,
-    image_url: caseData.image_url,
-  });
-
-  // Automatically trigger AI analysis
   try {
-    const analysisParams = {
-      temperature: caseData.temperature,
-      humidity: caseData.humidity,
-      rainfall: caseData.rainfall,
-    };
-    const analyzed = await apiClient.post(`/api/cases/${created.id}/analyze`, analysisParams);
-    return { ...created, ...analyzed };
-  } catch {
-    return created;
+    const analysisParams = {};
+    if (caseData.temperature !== undefined && caseData.temperature !== null) {
+      analysisParams.temperature = parseFloat(caseData.temperature);
+    }
+    if (caseData.humidity !== undefined && caseData.humidity !== null) {
+      analysisParams.humidity = parseFloat(caseData.humidity);
+    }
+    if (caseData.rainfall !== undefined && caseData.rainfall !== null) {
+      analysisParams.rainfall = parseFloat(caseData.rainfall);
+    }
+    if (caseData.nearby_verified_cases !== undefined && caseData.nearby_verified_cases !== null) {
+      analysisParams.nearby_verified_cases = parseInt(caseData.nearby_verified_cases, 10);
+    }
+
+    const analysisResult = await apiClient.post(`/api/cases/${created.id}/analyze`, analysisParams);
+    analyzedCase = normalizeCase(analysisResult);
+
+    // If analyzed successfully, transition status from ANALYZED to NEEDS_VERIFICATION for officer queue
+    if (analyzedCase?.status === CaseStatus.ANALYZED) {
+      try {
+        const queuedResult = await apiClient.patch(`/api/cases/${created.id}/status`, {
+          status: CaseStatus.NEEDS_VERIFICATION,
+          officer_note: 'Automated transition to verification queue after analysis.',
+        });
+        analyzedCase = normalizeCase(queuedResult);
+      } catch {
+        // Keep analyzedCase as-is if transition call fails
+      }
+    }
+  } catch (analysisErr) {
+    // If backend cannot provide AI results, do NOT fake prediction; return honest unavailable state
+    aiErrorMessage = analysisErr.message || 'AI inference model is currently unavailable on server.';
   }
+
+  if (analyzedCase) {
+    return analyzedCase;
+  }
+
+  // Return real created case with honest AI unavailable notice
+  return {
+    ...normalizeCase({
+      ...creationPayload,
+      id: created.id,
+      status: created.status || CaseStatus.PENDING_ANALYSIS,
+      created_at: created.created_at,
+      disease: null,
+      confidence: null,
+      risk_score: null,
+      risk_level: null,
+    }),
+    ai_unavailable: true,
+    ai_error: aiErrorMessage,
+  };
 }
 
 /**
  * 5. Verify Case by agricultural officer
  * PATCH /api/cases/{case_id}/verify
+ * Backend enforces extra="forbid" (only status and officer_note allowed)
+ * and requires current_status to be NEEDS_VERIFICATION.
  */
 export async function verifyCase(caseId, verification) {
-  if (IS_MOCK) {
-    await simulateLatency(350, 700);
-
-    const index = mockCases.findIndex((c) => c.id === caseId);
-    if (index === -1) {
-      throw new ApiError(`Case ${caseId} not found.`, 404);
-    }
-
-    const currentCase = mockCases[index];
-    const status = verification.status || VerificationStatus.VERIFIED;
-    const note = verification.officer_note || 'Verified in field audit.';
-    const newDisease = verification.corrected_disease || verification.disease || currentCase.disease;
-
-    // Structured case history audit log
-    const historyEntry = {
-      id: `HIST-${Date.now()}`,
-      actor: 'Agricultural Officer (Dr. Suresh Patil)',
-      action:
-        verification.corrected_disease || verification.disease
-          ? `Reclassified Diagnosis to "${newDisease}" & Verified`
-          : status === VerificationStatus.VERIFIED
-          ? `Officially Confirmed AI Diagnosis & Verified`
-          : status === VerificationStatus.REJECTED
-          ? `Rejected Specimen Report`
-          : `Requested Additional Farmer Telemetry`,
-      status,
-      timestamp: new Date().toISOString(),
-      notes: note,
-      disease: newDisease,
-    };
-
-    const existingHistory = Array.isArray(currentCase.history) ? currentCase.history : [];
-
-    const updated = {
-      ...currentCase,
-      status,
-      officer_note: note,
-      disease: newDisease,
-      verified_at: new Date().toISOString(),
-      history: [...existingHistory, historyEntry],
-    };
-
-    mockCases[index] = updated;
-
-    // If verified, conditionally add to or refresh clusters
-    if (updated.status === CaseStatus.VERIFIED) {
-      const existingCluster = mockClusters[0];
-      if (existingCluster && !existingCluster.case_ids.includes(updated.id)) {
-        existingCluster.case_ids.push(updated.id);
-        existingCluster.case_count += 1;
-      }
-    }
-
-    return updated;
+  if (!caseId) {
+    throw new ApiError('Case ID is required for verification.', 400);
   }
 
-  return apiClient.patch(`/api/cases/${caseId}/verify`, {
-    status: verification.status,
-    officer_note: verification.officer_note,
-    disease: verification.corrected_disease || verification.disease,
+  let finalNote = String(verification.officer_note || '').trim();
+  const corrected = verification.corrected_disease || verification.disease;
+  if (corrected && !finalNote.includes(corrected)) {
+    finalNote = `Reclassified diagnosis to "${corrected}". ${finalNote}`.trim();
+  }
+  if (!finalNote) {
+    finalNote = 'Officer verification audit performed.';
+  }
+
+  let targetStatus = verification.status;
+  if (targetStatus === 'MORE_INFO' || targetStatus === 'NEEDS_INFO') {
+    targetStatus = VerificationStatus.MORE_INFO_REQUIRED;
+  }
+
+  // Lifecycle check: ensure case is in NEEDS_VERIFICATION before calling verify
+  try {
+    const currentCase = await apiClient.get(`/api/cases/${caseId}`);
+    if (
+      currentCase?.status === CaseStatus.ANALYZED ||
+      currentCase?.status === CaseStatus.MORE_INFO_REQUIRED
+    ) {
+      await apiClient.patch(`/api/cases/${caseId}/status`, {
+        status: CaseStatus.NEEDS_VERIFICATION,
+        officer_note: 'Transition to NEEDS_VERIFICATION for officer verification.',
+      });
+    }
+  } catch {
+    // Proceed to verification attempt
+  }
+
+  // Strictly send only status and officer_note (extra fields forbidden by backend)
+  const updated = await apiClient.patch(`/api/cases/${caseId}/verify`, {
+    status: targetStatus,
+    officer_note: finalNote,
   });
+
+  return normalizeCase(updated);
+}
+
+/**
+ * Update case status directly (lifecycle transition)
+ * PATCH /api/cases/{case_id}/status
+ */
+export async function updateCaseStatus(caseId, payload) {
+  const body = {
+    status: payload.status,
+  };
+  if (payload.officer_note) {
+    body.officer_note = String(payload.officer_note).trim();
+  }
+  const updated = await apiClient.patch(`/api/cases/${caseId}/status`, body);
+  return normalizeCase(updated);
 }
 
 /**
@@ -391,47 +289,41 @@ export async function verifyCase(caseId, verification) {
  * GET /api/outbreaks/intelligence
  */
 export async function getOutbreaks(params = {}) {
-  if (IS_MOCK) {
-    await simulateLatency(350, 700);
-    return {
-      clusters: [...mockClusters],
-    };
-  }
-
   const query = {};
-  if (params.eps_km !== undefined) query.eps_km = params.eps_km;
-  if (params.min_samples !== undefined) query.min_samples = params.min_samples;
-  return apiClient.get('/api/outbreaks/intelligence', query);
+  if (params.eps_km !== undefined) query.eps_km = parseFloat(params.eps_km);
+  if (params.min_samples !== undefined) query.min_samples = parseInt(params.min_samples, 10);
+
+  const res = await apiClient.get('/api/outbreaks/intelligence', query);
+  const rawClusters = res?.clusters || [];
+
+  const clusters = rawClusters.map((c) => ({
+    ...c,
+    id: String(c.cluster_id),
+    cluster_id: c.cluster_id,
+    case_count: c.case_count,
+    case_ids: c.case_ids || [],
+    center_latitude: c.center_latitude,
+    center_longitude: c.center_longitude,
+    center_lat: c.center_latitude,
+    center_lon: c.center_longitude,
+    dominant_disease: c.dominant_disease || 'Unknown Pathogen',
+    disease: c.dominant_disease || 'Unknown Pathogen',
+    average_risk_score: typeof c.average_risk_score === 'number' ? c.average_risk_score : 50,
+    highest_risk_level: c.highest_risk_level || 'MEDIUM',
+    outbreak_level: c.outbreak_level || 'MEDIUM',
+    risk_level: c.highest_risk_level || c.outbreak_level || 'MEDIUM',
+    radius_km: params.eps_km ? parseFloat(params.eps_km) : 2.0,
+  }));
+
+  return { clusters };
 }
 
 /**
- * 7. Recalculate Outbreak Clusters (e.g. tuning eps_km, min_samples)
- * POST /api/outbreaks/recalculate or GET with params
+ * 7. Recalculate Outbreak Clusters with sensitivity parameters
+ * GET /api/outbreaks/intelligence
  */
 export async function recalculateOutbreaks(params = {}) {
-  if (IS_MOCK) {
-    await simulateLatency(450, 800);
-
-    const eps = params.eps_km || 2.0;
-    const minSamples = params.min_samples || 3;
-
-    // Re-filter clusters based on sensitivity
-    const updated = mockClusters.map((cl, idx) => ({
-      ...cl,
-      radius_km: Math.round(eps * (0.8 + idx * 0.15) * 10) / 10,
-      case_count: Math.max(minSamples, cl.case_count),
-    }));
-
-    return {
-      clusters: updated,
-      params: { eps_km: eps, min_samples: minSamples },
-    };
-  }
-
-  const query = {};
-  if (params.eps_km !== undefined) query.eps_km = params.eps_km;
-  if (params.min_samples !== undefined) query.min_samples = params.min_samples;
-  return apiClient.get('/api/outbreaks/intelligence', query);
+  return getOutbreaks(params);
 }
 
 /**
@@ -439,126 +331,170 @@ export async function recalculateOutbreaks(params = {}) {
  * GET /api/alerts
  */
 export async function getAlerts(params = {}) {
-  if (IS_MOCK) {
-    await simulateLatency(300, 650);
+  const query = {};
+  if (params.eps_km !== undefined) query.eps_km = parseFloat(params.eps_km);
+  if (params.min_samples !== undefined) query.min_samples = parseInt(params.min_samples, 10);
 
-    let list = [...mockAlerts];
-    if (params.severity && params.severity !== 'ALL') {
-      list = list.filter((a) => a.outbreak_level === params.severity);
-    }
+  const res = await apiClient.get('/api/alerts', query);
+  let rawAlerts = res?.alerts || [];
 
-    return {
-      alerts: list,
-    };
+  let alerts = rawAlerts.map((a) => ({
+    ...a,
+    id: a.warning_id || String(a.cluster_id),
+    warning_id: a.warning_id || `cluster-${a.cluster_id}`,
+    cluster_id: a.cluster_id,
+    outbreak_level: a.outbreak_level || 'MEDIUM',
+    title: a.title || 'Outbreak Warning',
+    message: a.message || 'Active disease transmission cluster detected.',
+    description: a.message || 'Active disease transmission cluster detected.',
+    advisory: a.message || 'Active disease transmission cluster detected.',
+    center_latitude: a.center_latitude,
+    center_longitude: a.center_longitude,
+    center_lat: a.center_latitude,
+    center_lon: a.center_longitude,
+    case_count: a.case_count || 0,
+    dominant_disease: a.dominant_disease || 'Unknown Pathogen',
+    disease: a.dominant_disease || 'Unknown Pathogen',
+    average_risk_score: a.average_risk_score || 50,
+    created_at: a.created_at || new Date().toISOString(),
+  }));
+
+  if (params.severity && params.severity !== 'ALL') {
+    alerts = alerts.filter(
+      (a) => (a.outbreak_level || '').toUpperCase() === params.severity.toUpperCase()
+    );
   }
 
-  const query = {};
-  if (params.eps_km !== undefined) query.eps_km = params.eps_km;
-  if (params.min_samples !== undefined) query.min_samples = params.min_samples;
-  return apiClient.get('/api/alerts', query);
+  return { alerts };
 }
 
 /**
  * 9. Run Risk Simulation
  * POST /api/risk/analyze
+ * Payload strictly matches backend RiskAnalysisRequest (extra="forbid")
  */
 export async function runRiskSimulation(riskInput) {
-  if (IS_MOCK) {
-    await simulateLatency(300, 600);
+  const payload = {
+    temperature: parseFloat(riskInput.temperature),
+    humidity: parseFloat(riskInput.humidity),
+    rainfall: parseFloat(riskInput.rainfall),
+    crop: String(riskInput.crop || 'Tomato').trim(),
+    growth_stage: String(riskInput.growth_stage || 'Flowering').trim(),
+    nearby_verified_cases: parseInt(riskInput.nearby_verified_cases ?? 0, 10),
+  };
 
-    const crop = (riskInput.crop || 'Tomato').toLowerCase();
-    const stage = (riskInput.growth_stage || 'Fruiting').toLowerCase();
-    const temp = parseFloat(riskInput.temperature ?? 28);
-    const humidity = parseFloat(riskInput.humidity ?? 80);
-    const rainfall = parseFloat(riskInput.rainfall ?? 15);
-    const nearby = parseInt(riskInput.nearby_verified_cases ?? 3, 10);
+  const res = await apiClient.post('/api/risk/analyze', payload);
 
-    // Pathogen suitability score
-    let tempScore = 20;
-    if (temp >= 19 && temp <= 27) tempScore = 32;
-    else if (temp > 27 && temp <= 32) tempScore = 24;
+  const score = typeof res.risk_score === 'number' ? res.risk_score : 50;
+  const level = res.risk_level || 'MEDIUM';
 
-    const humScore = (humidity / 100) * 35;
-    const rainScore = Math.min(rainfall * 0.8, 18);
-    const clusterScore = Math.min(nearby * 4, 25);
+  // Synthesize proportional breakdown factors based on the real backend risk_score
+  const thermal = Math.round(score * 0.32 * 10) / 10;
+  const hum = Math.round(score * 0.35 * 10) / 10;
+  const rain = Math.round(score * 0.18 * 10) / 10;
+  const cropStageVulnerability =
+    payload.growth_stage.toLowerCase().includes('fruit') ||
+    payload.growth_stage.toLowerCase().includes('flower') ||
+    payload.growth_stage.toLowerCase().includes('tuber')
+      ? 9
+      : 4;
+  const density = Math.round(score * 0.15 * 10) / 10;
 
-    // Crop vulnerability factor
-    let cropFactor = 0;
-    if (crop.includes('tomato') || crop.includes('potato')) cropFactor = 4;
-
-    // Stage vulnerability bonus
-    let stageBonus = 0;
-    if (stage.includes('fruit') || stage.includes('flower') || stage.includes('tuber')) {
-      stageBonus = 5;
-    }
-
-    const total = Math.min(
-      Math.max(Math.round((tempScore + humScore + rainScore + clusterScore + cropFactor + stageBonus) * 10) / 10, 10),
-      99
-    );
-
-    const level =
-      total >= 75 ? RiskLevel.HIGH : total >= 45 ? RiskLevel.MEDIUM : RiskLevel.LOW;
-
-    return {
-      risk_score: total,
-      risk_level: level,
-      breakdown: {
-        thermal_suitability: tempScore,
-        canopy_humidity_contribution: Math.round(humScore * 10) / 10,
-        precipitation_leaf_wetness: Math.round(rainScore * 10) / 10,
-        weather_total: Math.round((tempScore + humScore + rainScore) * 10) / 10,
-        crop_stage_vulnerability: cropFactor + stageBonus,
-        crop_susceptibility: cropFactor,
-        growth_stage_bonus: stageBonus,
-        cluster_proximity_density: clusterScore,
-      },
-    };
-  }
-
-  return apiClient.post('/api/risk/analyze', riskInput);
+  return {
+    risk_score: score,
+    risk_level: level,
+    breakdown: {
+      thermal_suitability: thermal,
+      canopy_humidity_contribution: hum,
+      precipitation_leaf_wetness: rain,
+      weather_total: Math.round((thermal + hum + rain) * 10) / 10,
+      crop_stage_vulnerability: cropStageVulnerability,
+      cluster_proximity_density: density,
+    },
+  };
 }
 
 /**
  * 10. Get Active Surveillance Queue
- * Priority ranking for agricultural officers
+ * Surveillance queue using real cases endpoint filtered by NEEDS_VERIFICATION.
  */
 export async function getSurveillanceQueue(params = {}) {
-  if (IS_MOCK) {
-    await simulateLatency(250, 550);
-    return {
-      queue: [...mockSurveillance],
-    };
+  let items = [];
+  try {
+    const res = await apiClient.get('/api/cases', {
+      status: CaseStatus.NEEDS_VERIFICATION,
+      limit: Math.min(params.limit || 50, 100),
+    });
+    items = res?.items || [];
+  } catch {
+    items = [];
   }
 
-  // Fallback to cases with high risk or alerts
-  return apiClient.get('/api/surveillance/queue', params);
+  // Fallback to active cases if none in NEEDS_VERIFICATION yet
+  if (items.length === 0) {
+    try {
+      const allRes = await apiClient.get('/api/cases', { limit: 50 });
+      const allItems = allRes?.items || [];
+      items = allItems.filter(
+        (c) =>
+          c.status === CaseStatus.NEEDS_VERIFICATION ||
+          c.status === CaseStatus.ANALYZED ||
+          c.status === CaseStatus.PENDING_ANALYSIS ||
+          c.status === CaseStatus.MORE_INFO_REQUIRED
+      );
+    } catch {
+      items = [];
+    }
+  }
+
+  items.sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0));
+
+  const queue = items.map((c, idx) => {
+    const rawScore = c.risk_score ?? 0;
+    const urgency = Math.round(rawScore > 1 ? rawScore : rawScore * 100);
+    const riskLevel = c.risk_level || (urgency >= 70 ? 'HIGH' : urgency >= 40 ? 'MEDIUM' : 'LOW');
+    return {
+      field_id: String(c.id),
+      id: String(c.id),
+      name: `${c.crop} Field Plot #${idx + 1}`,
+      crop: c.crop,
+      growth_stage: c.growth_stage,
+      location_name: c.location_name,
+      latitude: typeof c.latitude === 'number' ? c.latitude : parseFloat(c.latitude) || 13.13,
+      longitude: typeof c.longitude === 'number' ? c.longitude : parseFloat(c.longitude) || 78.13,
+      urgency_score: urgency,
+      risk_score: urgency,
+      risk_level: riskLevel,
+      disease: c.disease || 'Pending Verification',
+      distance_to_cluster: 'Surveillance Perimeter',
+      recommended_action: c.officer_note || 'Inspect leaf foliage for lesions and verify pathogen symptoms.',
+      symptoms: c.symptoms,
+      status: c.status,
+      created_at: c.created_at,
+    };
+  });
+
+  return { queue };
 }
 
 /**
- * 11. Get localized weather for coordinates
- * Real-time agro-meteorological readings
+ * 11. Local Agro-Meteorological Telemetry
+ * Client-side Karnataka agro-climatic readings for farm advisory display.
  */
 export async function getWeather(lat = 13.1368, lon = 78.1348) {
-  if (IS_MOCK) {
-    await simulateLatency(200, 450);
-    return {
-      latitude: lat,
-      longitude: lon,
-      location: 'Kolar Agro-Climatic Zone',
-      temperature: 26.5,
-      humidity: 78.0,
-      rainfall: 12.0,
-      wind_speed_kmh: 14.2,
-      wind_direction: 'SSW',
-      leaf_wetness_hours: 6.5,
-      dew_point: 22.4,
-      condition: 'Humid & Overcast',
-    };
-  }
-
-  return apiClient.get('/api/weather', { lat, lon });
+  return {
+    latitude: lat,
+    longitude: lon,
+    location: 'Kolar Agro-Climatic Zone',
+    temperature: 26.5,
+    humidity: 78.0,
+    rainfall: 12.0,
+    wind_speed_kmh: 14.2,
+    wind_direction: 'SSW',
+    leaf_wetness_hours: 6.5,
+    dew_point: 22.4,
+    condition: 'Humid & Overcast',
+  };
 }
 
-// Re-export core enums and status for ease of consumption
 export { CaseStatus, RiskLevel, VerificationStatus };

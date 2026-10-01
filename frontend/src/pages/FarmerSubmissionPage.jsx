@@ -13,7 +13,6 @@ import {
   ArrowRight,
   ArrowLeft,
   RotateCcw,
-  Sparkles,
   CloudSun,
   Thermometer,
   Droplets,
@@ -24,7 +23,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 
-import { useSubmitCase, useWeather } from '../services/queries';
+import { useSubmitCase } from '../services/queries';
 import { formatErrorMessage } from '../services/api';
 import { saveOfflineReport } from '../services/offlineQueue';
 import { getTreatmentAdvice } from '../services/diseaseTreatments';
@@ -86,41 +85,6 @@ const SYMPTOM_OPTIONS = [
   { id: 'fruit_rot', labelKey: 'symptomsStep.symptomFruitRot', defaultLabel: 'Fruit / Stem rot', icon: '🟤' },
 ];
 
-const DEV_PRESETS = [
-  {
-    name: 'Tomato Early Blight',
-    crop: 'Tomato',
-    growth_stage: 'Fruiting',
-    selectedSymptoms: ['leaf_spots', 'yellowing'],
-    symptomsNotes: 'Concentric dark target spots on lower leaves with yellow margins.',
-    location_name: 'Kolar Agro Sector 4, Srinivaspur Rd',
-    latitude: 13.1368,
-    longitude: 78.1348,
-    image_url: 'https://images.unsplash.com/photo-1592417817098-8f3d6910985c?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    name: 'Potato Late Blight',
-    crop: 'Potato',
-    growth_stage: 'Vegetative',
-    selectedSymptoms: ['wilting', 'leaf_spots', 'fruit_rot'],
-    symptomsNotes: 'Water-soaked blackening lesions on leaf edges following morning fog.',
-    location_name: 'Hassan Farm 12, Karnataka',
-    latitude: 13.0033,
-    longitude: 76.1004,
-    image_url: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    name: 'Corn Rust',
-    crop: 'Corn (Maize)',
-    growth_stage: 'Flowering',
-    selectedSymptoms: ['leaf_spots', 'yellowing'],
-    symptomsNotes: 'Dense cinnamon-orange pustules scattered over the upper leaf canopy.',
-    location_name: 'Dharwad Basin Block C, Karnataka',
-    latitude: 15.4589,
-    longitude: 75.0078,
-    image_url: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=600&q=80',
-  },
-];
 
 // Zod validation schema: Starts completely empty!
 const reportFormSchema = z.object({
@@ -184,9 +148,6 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
 
   const formData = watch();
   const submitMutation = useSubmitCase();
-
-  // Auto-fetch weather based on chosen coordinates (used in Review & AI inference)
-  const { data: autoWeather } = useWeather(formData.latitude || 13.1368, formData.longitude || 78.1348);
 
   // 1. Load draft from localStorage on mount (form starts empty unless draft exists)
   useEffect(() => {
@@ -285,18 +246,6 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
     setValue('selectedSymptoms', updated, { shouldValidate: true });
   };
 
-  // Dev preset loader
-  const applyDevPreset = (preset) => {
-    setValue('crop', preset.crop, { shouldValidate: true });
-    setValue('growth_stage', preset.growth_stage, { shouldValidate: true });
-    setValue('selectedSymptoms', preset.selectedSymptoms, { shouldValidate: true });
-    setValue('symptomsNotes', preset.symptomsNotes, { shouldValidate: true });
-    setValue('location_name', preset.location_name, { shouldValidate: true });
-    setValue('latitude', preset.latitude, { shouldValidate: true });
-    setValue('longitude', preset.longitude, { shouldValidate: true });
-    setValue('image_url', preset.image_url, { shouldValidate: true });
-    setValue('image_file', null);
-  };
 
   // Final Form Submission
   const handleSubmitReport = async () => {
@@ -363,7 +312,11 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
       setAnalyzedResult(result);
       setSubmittingStep('done');
       localStorage.removeItem(DRAFT_STORAGE_KEY);
-      success(t('reports.submittedToast', 'Report submitted successfully! AI analysis ready.'));
+      if (result?.ai_unavailable) {
+        info('Report submitted. Case queued for officer review (AI model unavailable on server).');
+      } else {
+        success(t('reports.submittedToast', 'Report submitted successfully! AI analysis ready.'));
+      }
 
       if (onCaseCreated) onCaseCreated(result);
     } catch (err) {
@@ -382,7 +335,7 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
 
   // Plain-Language Confidence translation & color
   const confidenceInfo = useMemo(() => {
-    if (!analyzedResult) return null;
+    if (!analyzedResult || analyzedResult.ai_unavailable || !analyzedResult.confidence) return null;
     const score = Math.round((analyzedResult.confidence || 0) * 100);
 
     if (score >= 85) {
@@ -413,6 +366,7 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
   }, [analyzedResult, t]);
 
   const treatmentAdvice = useMemo(() => {
+    if (!analyzedResult?.disease || analyzedResult?.ai_unavailable) return null;
     return getTreatmentAdvice(analyzedResult?.disease);
   }, [analyzedResult]);
 
@@ -434,18 +388,33 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
         </div>
       )}
 
+      {/* AI Unavailable Banner */}
+      {analyzedResult?.ai_unavailable && (
+        <div className="cs-offline-notice-banner mb-3" style={{ background: '#f8fafc', border: '1px solid #cbd5e1' }} role="status">
+          <Info size={18} className="text-muted flex-shrink-0" />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-main)' }}>
+              AI Model Currently Unavailable
+            </div>
+            <div style={{ fontSize: '12px', marginTop: '2px', color: 'var(--text-muted)' }}>
+              Your case was submitted successfully, but the AI diagnosis model is not currently available. Your submission has been saved and is awaiting AI analysis.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Badges */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '10px' }}>
         <div className="cs-badge cs-badge-suspected">
           <AlertTriangle size={13} className="icon-mr" />
-          <span>{t('results.suspectedBadge', 'Suspected (Pending Officer Confirmation)')}</span>
+          <span>{analyzedResult?.ai_unavailable ? 'Awaiting AI Analysis' : t('results.suspectedBadge', 'Suspected (Pending Officer Confirmation)')}</span>
         </div>
         <RiskBadge level={analyzedResult?.risk_level || 'MEDIUM'} size="md" showScore={false} />
       </div>
 
       {/* Large Disease Name */}
       <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.25, letterSpacing: '-0.4px' }}>
-        {analyzedResult?.disease || t('home.underAiAnalysis', 'Under AI Analysis')}
+        {analyzedResult?.disease || (analyzedResult?.ai_unavailable ? 'Awaiting AI Analysis' : t('home.underAiAnalysis', 'Under AI Analysis'))}
       </h2>
       <div style={{ fontSize: '13.5px', color: 'var(--text-muted)', marginTop: '3px' }}>
         {formData.crop} &bull; {formData.growth_stage} &bull; {formData.location_name}
@@ -510,53 +479,70 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
           </h3>
         </div>
 
-        <div
-          style={{
-            fontSize: '11.5px',
-            color: 'var(--primary)',
-            fontWeight: 600,
-            background: 'var(--primary-light)',
-            padding: '6px 10px',
-            borderRadius: 'var(--radius-sm)',
-            marginBottom: '12px',
-          }}
-        >
-          {t('results.treatmentNotice', 'Advice is curated by agricultural experts. Follow the label instructions for dosage.')}
-        </div>
-
-        <div style={{ fontSize: '13.5px', color: 'var(--text-body)', lineHeight: 1.45, marginBottom: '10px' }}>
-          <strong>{t('results.immediateAction', 'Immediate Action')}: </strong>
-          {treatmentAdvice.immediateAction}
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {treatmentAdvice.recommendedSpray.map((spray, idx) => (
+        {treatmentAdvice ? (
+          <>
             <div
-              key={idx}
               style={{
-                background: '#ffffff',
-                border: '1px solid var(--border-card)',
-                borderRadius: 'var(--radius-md)',
-                padding: '10px 12px',
+                fontSize: '11.5px',
+                color: 'var(--primary)',
+                fontWeight: 600,
+                background: 'var(--primary-light)',
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-sm)',
+                marginBottom: '12px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  {spray.type}
-                </span>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
-                  {spray.dosage}
-                </span>
-              </div>
-              <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
-                {spray.name}
-              </div>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                {spray.notes}
-              </div>
+              {t('results.treatmentNotice', 'Advice is curated by agricultural experts. Follow the label instructions for dosage.')}
             </div>
-          ))}
-        </div>
+
+            <div style={{ fontSize: '13.5px', color: 'var(--text-body)', lineHeight: 1.45, marginBottom: '10px' }}>
+              <strong>{t('results.immediateAction', 'Immediate Action')}: </strong>
+              {treatmentAdvice.immediateAction}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {treatmentAdvice.recommendedSpray?.map((spray, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid var(--border-card)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '10px 12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      {spray.type}
+                    </span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
+                      {spray.dosage}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
+                    {spray.name}
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {spray.notes}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div
+            style={{
+              padding: '12px 14px',
+              background: 'var(--bg-subtle)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '13px',
+              color: 'var(--text-muted)',
+              lineHeight: 1.5,
+            }}
+          >
+            Recommended actions and chemical spray prescriptions will be provided once the diagnosis is confirmed by an agricultural officer or AI analysis.
+          </div>
+        )}
       </div>
 
       {/* Action Buttons */}
@@ -600,27 +586,6 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
 
   return (
     <div className="farmer-wizard-shell">
-      {/* Dev Quick Load Sample Chips (ONLY visible if import.meta.env.DEV) */}
-      {import.meta.env.DEV && (
-        <div className="farmer-dev-samples-bar mb-3">
-          <div className="dev-samples-label">
-            <Sparkles size={13} className="icon-mr" />
-            <span>{t('wizard.devLoadSample', 'Developer quick sample:')}</span>
-          </div>
-          <div className="dev-samples-chips">
-            {DEV_PRESETS.map((preset) => (
-              <button
-                key={preset.name}
-                type="button"
-                className="dev-sample-chip"
-                onClick={() => applyDevPreset(preset)}
-              >
-                {preset.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Main Wizard Container (Responsive 2-column layout on Desktop >=1024px with sticky result panel) */}
       <div className="farmer-wizard-layout-grid">
@@ -1096,7 +1061,7 @@ export default function FarmerSubmissionPage({ onCaseCreated }) {
                           </>
                         ) : (
                           <>
-                            <Sparkles size={18} className="icon-mr" />
+                            <CheckCircle2 size={18} className="icon-mr" />
                             <span>{t('reviewStep.submitBtn', 'Submit for Instant Diagnosis')}</span>
                           </>
                         )}

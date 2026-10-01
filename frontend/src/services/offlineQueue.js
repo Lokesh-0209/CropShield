@@ -101,7 +101,7 @@ export async function removeQueuedReport(id) {
 }
 
 /**
- * Synchronize all pending offline reports with the backend/mock service
+ * Synchronize all pending offline reports with the backend service
  */
 export async function syncOfflineReports(submitFn) {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {

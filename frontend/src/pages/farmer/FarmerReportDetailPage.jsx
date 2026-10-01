@@ -151,15 +151,17 @@ export default function FarmerReportDetailPage() {
   }
 
   const isVerified = caseItem.status === 'VERIFIED';
-  const confidenceScore = Math.round((caseItem.confidence || 0.85) * 100);
-  const confidenceLabel =
-    confidenceScore >= 85
-      ? t('results.confidenceLikely', 'Likely')
-      : confidenceScore >= 60
-      ? t('results.confidencePossible', 'Possible')
-      : t('results.confidenceUnsure', 'Not sure, sent to an officer for checking');
+  const hasConfidence = typeof caseItem.confidence === 'number' && caseItem.confidence > 0;
+  const confidenceScore = hasConfidence ? Math.round(caseItem.confidence * 100) : null;
+  const confidenceLabel = confidenceScore != null
+    ? (confidenceScore >= 85
+        ? t('results.confidenceLikely', 'Likely')
+        : confidenceScore >= 60
+        ? t('results.confidencePossible', 'Possible')
+        : t('results.confidenceUnsure', 'Not sure, sent to an officer for checking'))
+    : null;
 
-  const treatmentAdvice = getTreatmentAdvice(caseItem.disease);
+  const treatmentAdvice = caseItem.disease ? getTreatmentAdvice(caseItem.disease) : null;
 
   return (
     <div style={{ maxWidth: '640px', margin: '0 auto' }}>
@@ -291,9 +293,15 @@ export default function FarmerReportDetailPage() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
-              <span style={{ fontSize: '13.5px', color: 'var(--text-body)', fontWeight: 600 }}>
-                {t('results.confidenceText', 'Confidence')}: <strong>{confidenceLabel}</strong> ({confidenceScore}%)
-              </span>
+              {confidenceLabel ? (
+                <span style={{ fontSize: '13.5px', color: 'var(--text-body)', fontWeight: 600 }}>
+                  {t('results.confidenceText', 'Confidence')}: <strong>{confidenceLabel}</strong> ({confidenceScore}%)
+                </span>
+              ) : (
+                <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  Awaiting AI diagnosis or officer confirmation
+                </span>
+              )}
               <RiskBadge level={caseItem.risk_level || 'MEDIUM'} score={caseItem.risk_score} size="sm" />
             </div>
           </div>
@@ -354,53 +362,70 @@ export default function FarmerReportDetailPage() {
               </h2>
             </div>
 
-            <div
-              style={{
-                fontSize: '12px',
-                color: 'var(--primary)',
-                fontWeight: 600,
-                background: 'var(--primary-light)',
-                padding: '6px 10px',
-                borderRadius: 'var(--radius-sm)',
-                marginBottom: '14px',
-              }}
-            >
-              {t('results.treatmentNotice', 'Advice is curated by agricultural experts. Follow the label instructions for dosage.')}
-            </div>
-
-            <p style={{ fontSize: '14px', color: 'var(--text-body)', lineHeight: 1.5, marginBottom: '12px' }}>
-              <strong>{t('results.immediateAction', 'Immediate Action')}: </strong>
-              {treatmentAdvice.immediateAction}
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {treatmentAdvice.recommendedSpray.map((spray, idx) => (
+            {treatmentAdvice ? (
+              <>
                 <div
-                  key={idx}
                   style={{
-                    background: '#ffffff',
-                    border: '1px solid var(--border-card)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '10px 12px',
+                    fontSize: '12px',
+                    color: 'var(--primary)',
+                    fontWeight: 600,
+                    background: 'var(--primary-light)',
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    marginBottom: '14px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                      {spray.type}
-                    </span>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
-                      {spray.dosage}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
-                    {spray.name}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {spray.notes}
-                  </div>
+                  {t('results.treatmentNotice', 'Advice is curated by agricultural experts. Follow the label instructions for dosage.')}
                 </div>
-              ))}
-            </div>
+
+                <p style={{ fontSize: '14px', color: 'var(--text-body)', lineHeight: 1.5, marginBottom: '12px' }}>
+                  <strong>{t('results.immediateAction', 'Immediate Action')}: </strong>
+                  {treatmentAdvice.immediateAction}
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {treatmentAdvice.recommendedSpray?.map((spray, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid var(--border-card)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '10px 12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          {spray.type}
+                        </span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
+                          {spray.dosage}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
+                        {spray.name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {spray.notes}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  background: 'var(--bg-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '13px',
+                  color: 'var(--text-muted)',
+                  lineHeight: 1.5,
+                }}
+              >
+                Recommended action and chemical treatment plans will be generated once diagnosis is confirmed.
+              </div>
+            )}
           </div>
 
           {/* Location & Metadata */}
